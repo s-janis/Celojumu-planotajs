@@ -1,0 +1,2754 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Ceļojuma Plānotājs v1.6</title>
+<meta name="application-name" content="Ceļojuma Plānotājs">
+<meta name="description" content="Personīgais ceļojumu plānotājs ar kartēm, itinerāru un dokumentiem">
+<meta name="theme-color" id="meta-theme-color" content="#1A5F58">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ceļojums">
+<link rel="manifest" id="cp-manifest">
+<link rel="apple-touch-icon" id="cp-apple-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%231A5F58'/%3E%3Ctext y='130' x='96' text-anchor='middle' font-size='110'%3E✈️%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="gfonts" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ── PWA INIT (runs before body) ── */
+(function(){
+  // Generate canvas icon
+  function mkIcon(sz,cr){
+    var cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+    cv.width=sz;cv.height=sz;
+    ctx.fillStyle='#1A5F58';
+    ctx.beginPath();ctx.moveTo(cr,0);ctx.lineTo(sz-cr,0);ctx.quadraticCurveTo(sz,0,sz,cr);
+    ctx.lineTo(sz,sz-cr);ctx.quadraticCurveTo(sz,sz,sz-cr,sz);
+    ctx.lineTo(cr,sz);ctx.quadraticCurveTo(0,sz,0,sz-cr);
+    ctx.lineTo(0,cr);ctx.quadraticCurveTo(0,0,cr,0);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#D4712E';ctx.fillRect(0,sz*0.68,sz,sz*0.09);
+    ctx.fillStyle='#fff';
+    ctx.font='bold '+(sz*0.46)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('✈',sz/2,sz*0.42);
+    ctx.font='bold '+(sz*0.15)+'px sans-serif';ctx.fillText('CP',sz/2,sz*0.82);
+    return cv.toDataURL('image/png');
+  }
+  var ico192=mkIcon(192,38),ico512=mkIcon(512,102);
+  var appleEl=document.getElementById('cp-apple-icon');
+  if(appleEl)appleEl.href=ico192;
+  // Manifest blob
+  var manifest={
+    name:'Ceļojuma Plānotājs',short_name:'Ceļojums',
+    description:'Ceļojumu plānošanas lietotne ar kartēm un dokumentu pārvaldību',
+    start_url:window.location.href,scope:window.location.pathname,
+    display:'standalone',orientation:'portrait',
+    background_color:'#F5F1EB',theme_color:'#1A5F58',
+    icons:[
+      {src:ico192,sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:ico512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ]
+  };
+  var mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  var mel=document.getElementById('cp-manifest');
+  if(mel)mel.href=URL.createObjectURL(mb);
+  // Service Worker
+  if('serviceWorker' in navigator){
+    var swCode='const CACHE="cp-v1.6";'+
+    'const EXT=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"];'+
+    'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(EXT.map(u=>fetch(new Request(u,{mode:"no-cors"})).then(r=>c.put(u,r)).catch(()=>{})))).catch(()=>{}));});'+
+    'self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim()));});'+
+    'self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(cached=>{if(cached)return cached;return fetch(e.request).then(resp=>{if(resp&&(resp.status===200||resp.type==="opaque")){const cl=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cl)).catch(()=>{});}return resp;}).catch(()=>caches.match(e.request));}).catch(()=>fetch(e.request)));});'+
+    'self.addEventListener("message",e=>{if(e.data&&e.data.type==="CACHE_PAGE"){caches.open(CACHE).then(c=>c.add(new Request(e.data.url,{cache:"reload"})).catch(()=>{})).catch(()=>{});}});';
+    var swBlob=new Blob([swCode],{type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:window.location.pathname})
+      .then(function(reg){
+        var cache=function(){if(navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage({type:'CACHE_PAGE',url:window.location.href});};
+        if(navigator.serviceWorker.controller)cache();
+        navigator.serviceWorker.addEventListener('controllerchange',cache);
+      }).catch(function(){});
+  }
+  // Install prompt
+  window.cpDeferredPrompt=null;
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();window.cpDeferredPrompt=e;
+    window.dispatchEvent(new CustomEvent('pwaReady',{detail:e}));
+  });
+  window.addEventListener('appinstalled',function(){
+    window.cpDeferredPrompt=null;
+    window.dispatchEvent(new CustomEvent('pwaInstalled'));
+  });
+})();
+</script>
+<style>
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;height:100dvh;overflow:hidden;}
+body{font-family:var(--ff);font-size:15px;color:var(--tx);background:var(--bg);transition:background .3s,color .3s;}
+button,input,select,textarea{font-family:var(--ff);font-size:14px;}
+h1,h2,h3,.serif{font-family:var(--ffs);}
+
+/* ── BASE TOKENS ── */
+:root{
+  --P:#1A5F58;--Pd:#134A44;--Pl:#E6F5F4;
+  --A:#D4712E;--Al:#FEF0E6;
+  --bg:#F5F1EB;--sur:#ffffff;--br:#E0D9CF;--brl:#EDE8E0;
+  --tx:#1C1C2E;--mu:#7A7A8C;
+  --ff:'DM Sans',system-ui,sans-serif;
+  --ffs:'Lora',Georgia,serif;
+  --H:60px;--TB:48px;--NAV:68px;--SW:212px;--SWC:52px;
+}
+/* ── THEMES ── */
+[data-theme=ocean]{--P:#1E40AF;--Pd:#1E3A8A;--Pl:#EFF6FF;--A:#F59E0B;--bg:#EEF4FF;}
+[data-theme=forest]{--P:#166534;--Pd:#14532D;--Pl:#F0FDF4;--A:#D97706;--bg:#EDFAF0;}
+[data-theme=sunset]{--P:#C2410C;--Pd:#9A3412;--Pl:#FFF7ED;--A:#7C3AED;--bg:#FDF6EF;}
+[data-theme=violet]{--P:#7C3AED;--Pd:#6D28D9;--Pl:#F5F3FF;--A:#D4712E;--bg:#F5F0FF;}
+[data-theme=dark]{
+  --P:#2A9D8F;--Pd:#1F7A74;--Pl:#1E3A3A;
+  --A:#F4A261;--Al:#3D2A15;
+  --bg:#0F172A;--sur:#1E293B;--br:#334155;--brl:#263148;
+  --tx:#F1F5F9;--mu:#94A3B8;
+}
+/* ── FONTS ── */
+[data-font=system]{--ff:system-ui,-apple-system,'Segoe UI',sans-serif;--ffs:system-ui,-apple-system,'Segoe UI',sans-serif;}
+
+/* ── SHELL ── */
+#shell{display:flex;flex-direction:column;width:100%;height:100%;}
+#hdr{flex:0 0 var(--H);height:var(--H);background:var(--P);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:200;box-shadow:0 2px 14px rgba(0,0,0,.18);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-ico{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.logo-name{font-family:var(--ffs);font-weight:700;color:#fff;font-size:16px;line-height:1.1;}
+.logo-ver{font-size:10px;color:rgba(255,255,255,.55);}
+.hdr-r{display:flex;align-items:center;gap:8px;}
+.hbtn{background:rgba(255,255,255,.14);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s;}
+.hbtn:hover{background:rgba(255,255,255,.26);}
+.hico{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s;}
+.hico:hover{background:rgba(255,255,255,.26);}
+.dot-on{width:8px;height:8px;border-radius:50%;background:#4ADE80;box-shadow:0 0 5px #4ADE80;}
+.dot-off{width:8px;height:8px;border-radius:50%;background:#F87171;}
+#body{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+/* ── MOBILE ── */
+#mob{display:flex;flex-direction:column;width:100%;height:100%;}
+#tbar{flex:0 0 var(--TB);height:var(--TB);background:var(--Pd);display:flex;align-items:center;padding:0 12px;gap:8px;overflow-x:auto;scrollbar-width:none;}
+#tbar::-webkit-scrollbar{display:none;}
+.tchip{flex-shrink:0;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid transparent;white-space:nowrap;color:rgba(255,255,255,.65);background:rgba(255,255,255,.09);transition:all .2s;}
+.tchip.on{color:var(--P);background:#fff;}
+.tchip:hover:not(.on){background:rgba(255,255,255,.18);color:#fff;}
+.tadd{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.3);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.tadd:hover{background:rgba(255,255,255,.26);}
+#ca{flex:1;position:relative;overflow:hidden;min-height:0;}
+.pane{position:absolute;inset:0;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.pane.on{display:block;}
+#p-map{overflow:hidden;}
+#bnav{flex:0 0 var(--NAV);height:var(--NAV);background:var(--P);display:flex;padding:0 4px;padding-bottom:env(safe-area-inset-bottom,0);box-shadow:0 -2px 14px rgba(0,0,0,.14);}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;font-weight:500;border-radius:12px;padding:6px 2px;transition:color .2s;}
+.nb.on{color:#fff;background:rgba(255,255,255,.12);}
+.nb:hover:not(.on){color:rgba(255,255,255,.8);}
+
+/* ── DESKTOP ── */
+#desk{display:none;width:100%;height:100%;}
+#sb{flex:0 0 var(--SW);width:var(--SW);height:100%;background:var(--sur);border-right:1px solid var(--br);display:flex;flex-direction:column;overflow:hidden;transition:width .22s,flex-basis .22s;}
+#sb.col{flex-basis:var(--SWC);width:var(--SWC);}
+.sb-top{flex:0 0 auto;display:flex;align-items:center;justify-content:flex-end;padding:8px;border-bottom:1px solid var(--brl);}
+.sb-cbtn{width:28px;height:28px;border-radius:8px;background:transparent;border:none;cursor:pointer;color:var(--mu);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.sb-cbtn:hover{background:var(--bg);color:var(--tx);}
+.sb-trips{flex:0 0 auto;padding:8px;border-bottom:1px solid var(--brl);}
+.sbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);padding:2px 6px 6px;white-space:nowrap;overflow:hidden;display:block;}
+.stchip{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;color:var(--mu);white-space:nowrap;overflow:hidden;transition:all .15s;}
+.stchip.on{background:var(--Pl);color:var(--P);font-weight:600;}
+.stchip:hover:not(.on){background:var(--bg);color:var(--tx);}
+.stdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.staddbtn{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;font-size:12px;font-weight:500;color:var(--mu);border:1.5px dashed var(--br);background:transparent;cursor:pointer;width:100%;margin-top:4px;transition:all .15s;white-space:nowrap;overflow:hidden;}
+.staddbtn:hover{border-color:var(--P);color:var(--P);background:var(--Pl);}
+.sb-nav{flex:1;padding:8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.sn{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;color:var(--mu);white-space:nowrap;overflow:hidden;transition:all .15s;}
+.sn.on{background:var(--Pl);color:var(--P);font-weight:600;}
+.sn:hover:not(.on){background:var(--bg);color:var(--tx);}
+.sn svg{flex-shrink:0;}
+.snlbl{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.sb-foot{padding:8px 12px;font-size:10px;color:var(--br);border-top:1px solid var(--brl);text-align:center;white-space:nowrap;overflow:hidden;}
+#dm{flex:1;position:relative;overflow:hidden;min-width:0;height:100%;}
+.dp{position:absolute;inset:0;display:none;overflow-y:auto;}
+.dp.on{display:block;}
+#dp-map{overflow:hidden;}
+
+/* ── MAP ── */
+#map-wrap{position:absolute;inset:0;}
+#lmap,#gmap{position:absolute;inset:0;width:100%;height:100%;}
+#gmap{display:none;background:var(--bg);}
+#lmap{background:#e8e4dc;}
+
+/* Search bar */
+#msbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:800;width:calc(100% - 24px);max-width:500px;}
+#msbar-row{display:flex;gap:6px;position:relative;}
+#ms-inp{flex:1;padding:10px 16px;border-radius:50px;border:none;background:var(--sur);box-shadow:0 2px 14px rgba(0,0,0,.22);font-size:14px;outline:none;color:var(--tx);}
+#ms-inp::placeholder{color:var(--mu);}
+#ms-clr{width:36px;height:44px;border-radius:50px;background:transparent;border:none;color:var(--mu);font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;position:absolute;right:54px;top:0;}
+#ms-clr.show{display:flex;}
+#ms-btn{width:44px;height:44px;border-radius:50%;background:var(--P);color:#fff;border:none;cursor:pointer;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;transition:background .2s;}
+#ms-btn:hover{background:var(--Pd);}
+#ms-ac{position:absolute;top:50px;left:0;right:54px;background:var(--sur);border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.18);overflow:hidden;display:none;z-index:900;max-height:260px;overflow-y:auto;}
+#ms-ac.show{display:block;}
+.ac-it{padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bg);transition:background .15s;display:flex;align-items:flex-start;gap:10px;color:var(--tx);}
+.ac-it:last-child{border-bottom:none;}
+.ac-it:hover{background:var(--Pl);}
+.ac-ico{font-size:15px;flex-shrink:0;margin-top:1px;}
+.ac-name{font-weight:600;}
+.ac-sub{font-size:11px;color:var(--mu);}
+
+/* Map controls */
+#map-ctrls{position:absolute;top:12px;right:12px;z-index:800;display:flex;flex-direction:column;gap:6px;}
+.map-ctrl-btn{width:38px;height:38px;border-radius:12px;background:var(--sur);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,.15);transition:background .15s;color:var(--tx);}
+.map-ctrl-btn:hover{background:var(--Pl);color:var(--P);}
+
+/* Legend */
+#mleg{position:absolute;bottom:80px;left:12px;z-index:800;background:var(--sur);border-radius:14px;padding:10px 14px;box-shadow:0 4px 14px rgba(0,0,0,.1);font-size:12px;display:none;color:var(--tx);}
+.ml-t{font-weight:700;color:var(--P);margin-bottom:6px;}
+.ml-r{display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+
+/* Click popup */
+#mcp{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:800;background:var(--sur);border-radius:18px;padding:14px 16px;box-shadow:0 4px 24px rgba(0,0,0,.2);display:none;min-width:240px;max-width:320px;color:var(--tx);}
+.mcp-t{font-weight:700;font-size:13px;margin-bottom:4px;}
+.mcp-a{font-size:12px;color:var(--mu);margin-bottom:10px;line-height:1.4;}
+
+/* FABs */
+.mfab{position:absolute;right:16px;z-index:800;width:50px;height:50px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .2s;}
+.mfab:hover{transform:scale(1.08);}
+.mfab-add{bottom:20px;background:var(--A);color:#fff;font-size:26px;}
+.mfab-route{bottom:78px;background:var(--P);color:#fff;font-size:18px;}
+
+/* Leaflet popup */
+.leaflet-popup-content-wrapper{border-radius:16px!important;box-shadow:0 4px 20px rgba(0,0,0,.18)!important;padding:0!important;background:var(--sur)!important;}
+.leaflet-popup-content{margin:0!important;}
+.lpop{padding:14px 16px;font-family:var(--ff);min-width:180px;color:var(--tx);}
+.lpop-name{font-weight:700;font-size:14px;margin-bottom:5px;}
+.lpop-sub{font-size:12px;color:#666;margin-bottom:3px;line-height:1.4;}
+.lpop-btns{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.lpop-btn{border:none;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:500;}
+
+/* No API key */
+#gmap-nokey{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;z-index:10;}
+.nk-t{font-family:var(--ffs);font-size:20px;font-weight:700;margin:12px 0 8px;color:var(--tx);}
+.nk-s{font-size:13px;color:var(--mu);margin-bottom:16px;max-width:360px;line-height:1.6;}
+
+/* ── CONTENT ── */
+.spad{padding:16px 18px 88px;}
+.dpad{padding:24px 32px 88px;max-width:1100px;}
+.sh{font-size:22px;font-weight:700;margin:0 0 4px;color:var(--tx);}
+.ss{font-size:13px;color:var(--mu);margin:0 0 18px;}
+.card{background:var(--sur);border-radius:18px;padding:14px 16px;box-shadow:0 1px 8px rgba(0,0,0,.06);border:1px solid var(--br);margin-bottom:10px;}
+.crow{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.ctit{font-size:15px;font-weight:600;margin:0 0 2px;color:var(--tx);}
+.csub{font-size:12px;color:var(--mu);margin:0;line-height:1.5;}
+.cacts{display:flex;gap:4px;flex-shrink:0;}
+.ibt{width:30px;height:30px;border-radius:8px;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--mu);transition:background .15s,color .15s;}
+.ibt:hover{background:#E8E2D9;color:var(--tx);}
+.ibt.del:hover{background:#FEE2E2;color:#DC2626;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;line-height:1.5;}
+.b-attraction,.b-lidojums{background:#EBF4FF;color:#1E40AF;}
+.b-hotel,.b-viesnca{background:#F5F3FF;color:#6D28D9;}
+.b-restaurant,.b-restorns{background:#FFF7ED;color:#C2410C;}
+.b-transport,.b-vilciens,.b-autobuss,.b-auto_noma{background:#ECFDF5;color:#065F46;}
+.b-activity,.b-pasak{background:#FFF1F2;color:#BE123C;}
+.b-other,.b-cits,.b-viza{background:#F7FAFC;color:#4A5568;}
+.b-kruizs{background:#EFF6FF;color:#1D4ED8;}
+.b-apdrosh{background:#F0FDF4;color:#166534;}
+.b-vauceris{background:#FFFBEB;color:#92400E;}
+.b-visited{background:#DCFCE7;color:#166534;}
+.b-route{background:#FFF0E6;color:#C2410C;}
+
+[data-theme=dark] .badge{filter:brightness(.85);}
+
+/* Trip cards */
+.tcard{border-radius:20px;overflow:hidden;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,.1);cursor:pointer;transition:transform .2s;}
+.tcard:hover{transform:translateY(-2px);}
+.tch{padding:18px 18px 14px;color:#fff;}
+.tcn{font-family:var(--ffs);font-size:20px;font-weight:700;margin-bottom:3px;}
+.tcd,.tcdt{font-size:13px;opacity:.85;margin-bottom:2px;}
+.tcdt{font-size:12px;opacity:.7;}
+.tcb{background:var(--sur);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
+.tcst{display:flex;gap:18px;}
+.tcsn{font-size:18px;font-weight:700;color:var(--P);}
+.tcsl{font-size:10px;color:var(--mu);font-weight:500;}
+.g1{background:linear-gradient(135deg,#1A5F58,#2A9D8F);}
+.g2{background:linear-gradient(135deg,#D4712E,#F4A261);}
+.g3{background:linear-gradient(135deg,#5B21B6,#8B5CF6);}
+.g4{background:linear-gradient(135deg,#1E40AF,#60A5FA);}
+.g5{background:linear-gradient(135deg,#9A3412,#EA580C);}
+.g6{background:linear-gradient(135deg,#14532D,#22C55E);}
+.trips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
+.trips-grid .tcard{margin-bottom:0;}
+
+/* Timeline */
+.tlday{margin-bottom:20px;}
+.tldh{font-size:12px;font-weight:700;color:var(--P);text-transform:uppercase;letter-spacing:.5px;padding-bottom:8px;border-bottom:2px solid var(--Pl);margin-bottom:10px;}
+.tli{display:flex;gap:10px;margin-bottom:8px;}
+.tll{display:flex;flex-direction:column;align-items:center;}
+.tldot{width:10px;height:10px;border-radius:50%;background:var(--P);flex-shrink:0;margin-top:5px;}
+.tldot.v{background:#4ADE80;}
+.tldot.r{background:var(--A);}
+.tlline{width:2px;flex:1;background:var(--br);min-height:12px;}
+.tlc{flex:1;}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.plan-grid .tlday{background:var(--sur);border-radius:16px;padding:14px;border:1px solid var(--br);margin-bottom:0;}
+.docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;}
+.docs-grid .card{margin-bottom:0;}
+
+/* Filters */
+.frow{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:16px;padding-bottom:4px;scrollbar-width:none;}
+.frow::-webkit-scrollbar{display:none;}
+.fpill{flex-shrink:0;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--br);background:var(--sur);color:var(--mu);white-space:nowrap;transition:all .15s;}
+.fpill.on{border-color:var(--P);background:var(--Pl);color:var(--P);}
+.fpill:hover:not(.on){border-color:var(--P);color:var(--P);}
+
+/* FAB */
+.fab{position:fixed;right:18px;z-index:90;width:54px;height:54px;border-radius:50%;background:var(--A);color:#fff;border:none;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,.25);transition:transform .2s;}
+.fab:hover{transform:scale(1.08);}
+.fab-m{bottom:calc(var(--NAV) + 16px);}
+.fab-d{bottom:24px;}
+
+/* Settings */
+.sset{background:var(--sur);border-radius:18px;margin-bottom:10px;border:1px solid var(--br);overflow:hidden;}
+.sseth{padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:14px;color:var(--tx);}
+.ssetb{padding:0 16px 14px;}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bg);color:var(--tx);}
+.srow:last-child{border-bottom:none;}
+.tog{width:44px;height:24px;border-radius:20px;background:#CBD5E0;cursor:pointer;position:relative;border:none;flex-shrink:0;transition:background .2s;}
+.tog.on{background:var(--P);}
+.tog::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.tog.on::after{transform:translateX(20px);}
+
+/* Theme swatches */
+.theme-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.tsw{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .2s;position:relative;}
+.tsw:hover{transform:scale(1.1);}
+.tsw.on{border-color:var(--tx);transform:scale(1.05);}
+.tsw-check{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;}
+
+/* Font buttons */
+.font-row{display:flex;gap:8px;margin-top:6px;}
+.fntbtn{flex:1;padding:8px;border-radius:12px;border:1.5px solid var(--br);background:var(--bg);cursor:pointer;text-align:center;font-size:13px;font-weight:500;color:var(--mu);transition:all .15s;}
+.fntbtn.on{border-color:var(--P);background:var(--Pl);color:var(--P);font-weight:600;}
+
+/* Map system buttons */
+.mapsys-row{display:flex;gap:8px;margin-top:6px;}
+.msbtn{flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--br);background:var(--bg);cursor:pointer;text-align:center;font-size:13px;font-weight:500;color:var(--mu);transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.msbtn.on{border-color:var(--P);background:var(--Pl);color:var(--P);font-weight:600;}
+.msbtn-ico{font-size:20px;}
+
+/* Forms */
+.fg{margin-bottom:14px;}
+.fl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);margin-bottom:5px;}
+.inp{width:100%;padding:10px 13px;background:var(--bg);border:1.5px solid var(--br);border-radius:12px;font-size:14px;color:var(--tx);transition:border-color .2s,background .2s;}
+.inp:focus{outline:none;border-color:var(--P);background:var(--sur);}
+select.inp{cursor:pointer;}
+textarea.inp{resize:vertical;min-height:70px;}
+.ctxt{font-size:11px;color:var(--mu);margin-top:4px;font-family:monospace;}
+.ap-res{background:var(--sur);border:1.5px solid var(--P);border-radius:12px;margin-top:4px;max-height:160px;overflow-y:auto;display:none;}
+.ap-res.show{display:block;}
+.ap-it{padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--bg);color:var(--tx);transition:background .15s;}
+.ap-it:hover{background:var(--Pl);}
+.ap-it:last-child{border-bottom:none;}
+.ap-iata{font-family:monospace;font-weight:700;color:var(--P);margin-right:6px;}
+
+/* Buttons */
+.btn{border:none;border-radius:50px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;transition:all .2s;}
+.bp{background:var(--P);color:#fff;}.bp:hover{background:var(--Pd);}
+.ba{background:var(--A);color:#fff;}.ba:hover{filter:brightness(.9);}
+.bg2{background:var(--bg);color:var(--tx);border:1.5px solid var(--br);}.bg2:hover{background:var(--br);}
+.bd{background:#FEF2F2;color:#DC2626;}.bd:hover{background:#FEE2E2;}
+.bfull{width:100%;}
+.bsm{padding:6px 14px;font-size:12px;}
+[data-theme=dark] .bd{background:#3D1515;color:#FCA5A5;}
+
+/* Modal */
+.mover{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;}
+.mbox{background:var(--sur);border-radius:28px 28px 0 0;width:100%;max-width:580px;max-height:94dvh;overflow-y:auto;padding:20px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.2);}
+.mhdl{width:36px;height:4px;background:var(--br);border-radius:4px;margin:0 auto 16px;}
+.mtit{font-size:20px;font-weight:700;margin:0 0 18px;color:var(--tx);}
+.macts{display:flex;gap:10px;margin-top:20px;}
+.macts .btn{flex:1;}
+body.is-desk .mover{align-items:center;}
+body.is-desk .mbox{border-radius:24px;}
+body.is-desk .mhdl{display:none;}
+
+/* Doc type grid */
+.dtg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;}
+.dtb{padding:8px 6px;border-radius:10px;border:1.5px solid var(--br);background:var(--bg);cursor:pointer;text-align:center;font-size:12px;font-weight:500;color:var(--mu);transition:all .15s;line-height:1.3;}
+.dtb:hover,.dtb.on{border-color:var(--P);color:var(--P);background:var(--Pl);}
+.dtb.on{font-weight:600;}
+.dtico{font-size:18px;display:block;margin-bottom:2px;}
+
+/* Code */
+.codeblk{background:#1C1C2E;color:#A5F3FC;border-radius:12px;padding:12px 14px;font-size:11px;font-family:monospace;white-space:pre;overflow:auto;max-height:200px;}
+
+/* Flight card */
+.route-card{background:linear-gradient(135deg,var(--P),var(--A));border-radius:16px;padding:14px 16px;color:#fff;margin-bottom:8px;}
+.route-from-to{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:4px;}
+.route-iata{font-size:20px;font-family:monospace;}
+.route-arrow{font-size:18px;opacity:.8;}
+.route-meta{font-size:12px;opacity:.8;display:flex;gap:12px;flex-wrap:wrap;}
+.route-dist{font-size:11px;opacity:.7;margin-top:3px;}
+
+/* Notif */
+#nwrap{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;}
+.nf{background:#1C1C2E;color:#fff;padding:10px 20px;border-radius:50px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.18);white-space:nowrap;animation:nfIn .25s ease;}
+.nf.ok{background:#065F46;}.nf.err{background:#991B1B;}.nf.inf{background:var(--P);}
+@keyframes nfIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Empty */
+.empty{text-align:center;padding:52px 24px;color:var(--mu);}
+.eico{font-size:52px;margin-bottom:14px;}
+.empty p{font-size:14px;margin-bottom:16px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#CBD5E0;border-radius:4px;}
+[data-theme=dark]::-webkit-scrollbar-thumb{background:#334155;}
+
+/* Spin */
+.spin{width:16px;height:16px;border:2px solid var(--br);border-top-color:var(--P);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Separator */
+.sep{height:1px;background:var(--br);margin:10px 0;}
+.sec-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:8px;}
+
+/* ── PWA INSTALL BANNER ── */
+#pwa-banner{
+  position:fixed;bottom:calc(var(--NAV) + 8px);left:12px;right:12px;
+  background:var(--sur);border-radius:18px;padding:14px 16px;
+  box-shadow:0 4px 24px rgba(0,0,0,.18);z-index:500;
+  display:flex;align-items:center;gap:12px;
+  border:1px solid var(--br);
+  transform:translateY(120%);transition:transform .3s ease;
+}
+#pwa-banner.show{transform:translateY(0);}
+body.is-desk #pwa-banner{bottom:20px;left:auto;right:20px;max-width:360px;}
+.pwa-banner-ico{font-size:36px;flex-shrink:0;}
+.pwa-banner-txt{flex:1;}
+.pwa-banner-title{font-weight:700;font-size:13px;color:var(--tx);}
+.pwa-banner-sub{font-size:11px;color:var(--mu);}
+.pwa-banner-btns{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+
+/* ── TIMELINE ── */
+.tl-outer{overflow-x:auto;overflow-y:hidden;padding:0 0 12px;-webkit-overflow-scrolling:touch;}
+.tl-outer::-webkit-scrollbar{height:4px;}
+.tl-outer::-webkit-scrollbar-thumb{background:var(--br);border-radius:4px;}
+.tl-grid{display:flex;gap:0;min-width:min-content;position:relative;padding-top:56px;}
+.tl-now-col{
+  position:absolute;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,#EF4444 0%,rgba(239,68,68,0) 100%);
+  z-index:20;pointer-events:none;
+}
+.tl-now-label{
+  position:absolute;top:-20px;left:50%;transform:translateX(-50%);
+  background:#EF4444;color:#fff;font-size:9px;font-weight:700;
+  padding:2px 6px;border-radius:10px;white-space:nowrap;
+}
+.tl-day-col{
+  flex-shrink:0;width:110px;border-right:1px solid var(--brl);
+  position:relative;
+}
+.tl-day-col:last-child{border-right:none;}
+.tl-day-header{
+  position:absolute;top:-56px;left:0;right:0;
+  padding:6px 6px 4px;text-align:center;
+}
+.tl-day-date{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;}
+.tl-day-name{font-size:13px;font-weight:700;color:var(--tx);}
+.tl-day-today .tl-day-name{color:#EF4444;}
+.tl-day-today .tl-day-date{color:#EF4444;}
+.tl-day-today .tl-day-header{background:rgba(239,68,68,.06);border-radius:10px 10px 0 0;}
+.tl-day-past .tl-day-name{color:var(--mu);}
+.tl-day-col-inner{padding:6px 5px;min-height:120px;display:flex;flex-direction:column;gap:5px;}
+.tl-event{
+  border-radius:10px;padding:6px 7px;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;position:relative;
+  font-size:11px;line-height:1.3;
+}
+.tl-event:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.15);}
+.tl-event-ico{font-size:14px;margin-bottom:2px;display:block;}
+.tl-event-name{font-weight:600;color:#fff;word-break:break-word;}
+.tl-event-sub{opacity:.8;color:#fff;font-size:10px;}
+.tl-event-past{opacity:.55;}
+.tl-event-now{box-shadow:0 0 0 2px #fff,0 0 0 4px #EF4444;}
+
+/* Event type colors */
+.tl-ev-attraction{background:#2563EB;}
+.tl-ev-hotel{background:#7C3AED;}
+.tl-ev-restaurant{background:#EA580C;}
+.tl-ev-transport{background:#059669;}
+.tl-ev-activity{background:#DB2777;}
+.tl-ev-other{background:#64748B;}
+.tl-ev-route{background:linear-gradient(135deg,var(--P),var(--A));}
+
+/* Flight arc in timeline */
+.tl-flight-arc{
+  position:absolute;top:50%;left:0;right:0;
+  height:2px;background:linear-gradient(90deg,var(--P),var(--A));
+  z-index:10;pointer-events:none;
+  border-radius:2px;
+}
+.tl-flight-plane{
+  position:absolute;top:-8px;font-size:14px;
+  animation:flyAnim 3s ease-in-out infinite;
+}
+@keyframes flyAnim{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+
+.tl-empty{text-align:center;padding:40px 20px;color:var(--mu);font-size:13px;}
+.tl-trip-summary{
+  background:var(--sur);border:1px solid var(--br);border-radius:18px;
+  padding:14px 16px;margin-bottom:12px;display:flex;gap:16px;align-items:center;
+  flex-wrap:wrap;
+}
+.tl-trip-stat{text-align:center;}
+.tl-trip-stat-n{font-size:22px;font-weight:700;color:var(--P);}
+.tl-trip-stat-l{font-size:10px;color:var(--mu);}
+.tl-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.tl-leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);}
+.tl-leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+
+/* Location fallback modal parts */
+.loc-search-row{display:flex;gap:6px;}
+.loc-search-inp{flex:1;}
+
+
+/* ── NOW INDICATOR ── */
+.now-bar{
+  display:flex;align-items:center;gap:10px;margin:6px 0 10px;
+  position:relative;z-index:5;
+}
+.now-line{flex:1;height:2px;background:linear-gradient(90deg,#EF4444,#F87171);}
+.now-pill{
+  flex-shrink:0;background:#EF4444;color:#fff;
+  font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(239,68,68,.4);
+  animation:nowPulse 2s ease-in-out infinite;
+}
+@keyframes nowPulse{0%,100%{box-shadow:0 2px 8px rgba(239,68,68,.4);}50%{box-shadow:0 2px 16px rgba(239,68,68,.7);}}
+.now-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:nowBlink 1s ease-in-out infinite;}
+@keyframes nowBlink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── FLIGHT PROGRESS ── */
+.flight-progress-wrap{margin-top:8px;}
+.flight-progress-bar{
+  height:6px;border-radius:6px;background:rgba(255,255,255,.25);
+  overflow:hidden;margin:4px 0;
+}
+.flight-progress-fill{height:100%;border-radius:6px;background:rgba(255,255,255,.9);transition:width .5s ease;}
+.flight-progress-labels{display:flex;justify-content:space-between;font-size:10px;opacity:.8;}
+.flight-progress-plane{font-size:14px;display:inline-block;}
+
+/* ── MY LOCATION DOT ── */
+.my-loc-ring{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(59,130,246,.25);
+  display:flex;align-items:center;justify-content:center;
+  animation:locRing 2s ease-out infinite;
+}
+@keyframes locRing{0%{transform:scale(1);opacity:1;}100%{transform:scale(2.5);opacity:0;}}
+.my-loc-dot{
+  width:12px;height:12px;border-radius:50%;
+  background:#3B82F6;border:2.5px solid #fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+
+/* ── PDF EXPORT BUTTON ── */
+.pdf-btn-wrap{display:flex;justify-content:flex-end;margin-bottom:12px;}
+
+/* ── PRINT STYLES (used for browser print fallback) ── */
+@media print{
+  #hdr,#bnav,#tbar,#sb,#map-wrap,.fab,.mfab,#nwrap,#mroot,#pwa-banner{display:none!important;}
+  body{overflow:auto!important;height:auto!important;background:#fff!important;color:#000!important;}
+  #shell,#body,#mob,#ca{overflow:visible!important;height:auto!important;position:static!important;}
+  .pane{display:block!important;position:static!important;overflow:visible!important;}
+  .card{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd!important;}
+  .route-card{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* ── PWA INSTALL BANNER ── */
+#pwa-banner{
+  position:fixed;bottom:calc(var(--NAV) + 8px);left:12px;right:12px;
+  z-index:500;
+  background:var(--sur);border-radius:18px;
+  padding:14px 16px;
+  box-shadow:0 4px 24px rgba(0,0,0,.2);
+  border:1px solid var(--br);
+  display:none;
+  align-items:center;gap:12px;
+}
+body.is-desk #pwa-banner{bottom:16px;left:auto;right:16px;max-width:360px;}
+#pwa-banner.show{display:flex;}
+.pwa-ico{font-size:28px;flex-shrink:0;}
+.pwa-text{flex:1;}
+.pwa-title{font-weight:700;font-size:14px;color:var(--tx);margin-bottom:2px;}
+.pwa-sub{font-size:11px;color:var(--mu);}
+.pwa-actions{display:flex;gap:6px;flex-shrink:0;}
+
+/* ── TRIP TIMELINE (laika skala) ── */
+#tl-wrap{
+  background:var(--sur);border-radius:18px;border:1px solid var(--br);
+  padding:16px;margin-bottom:16px;overflow:hidden;
+}
+.tl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.tl-head-title{font-weight:700;font-size:14px;color:var(--tx);display:flex;align-items:center;gap:6px;}
+.tl-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:8px;scrollbar-width:thin;cursor:grab;}
+.tl-scroll:active{cursor:grabbing;}
+.tl-inner{display:flex;flex-direction:column;min-width:max-content;gap:0;}
+
+/* Day columns */
+.tl-days-row{display:flex;gap:0;margin-bottom:6px;}
+.tl-day-col{
+  display:flex;flex-direction:column;align-items:center;
+  min-width:80px;max-width:80px;
+  border-right:1px solid var(--brl);
+  padding:0 4px;
+}
+.tl-day-col:last-child{border-right:none;}
+.tl-day-col.today .tl-day-lbl{color:#EF4444;font-weight:700;}
+.tl-day-col.today .tl-day-num{background:#EF4444;color:#fff;}
+.tl-day-col.past .tl-day-num{background:var(--bg);color:var(--mu);}
+.tl-day-col.future .tl-day-num{background:var(--Pl);color:var(--P);}
+.tl-day-num{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;margin-bottom:3px;
+}
+.tl-day-lbl{font-size:9px;color:var(--mu);text-align:center;white-space:nowrap;}
+.tl-day-date{font-size:9px;color:var(--mu);text-align:center;white-space:nowrap;margin-top:1px;}
+
+/* Events per day */
+.tl-events-row{display:flex;gap:0;}
+.tl-day-events{
+  min-width:80px;max-width:80px;
+  display:flex;flex-direction:column;gap:3px;
+  padding:0 4px;
+  border-right:1px solid var(--brl);
+}
+.tl-day-events:last-child{border-right:none;}
+.tl-evt{
+  border-radius:8px;padding:4px 6px;font-size:10px;
+  font-weight:500;cursor:pointer;transition:opacity .15s;
+  display:flex;align-items:center;gap:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:72px;
+}
+.tl-evt:hover{opacity:.8;}
+.tl-evt.place{background:var(--Pl);color:var(--P);}
+.tl-evt.route{background:var(--Al,#FEF0E6);color:var(--A);}
+.tl-evt.past{opacity:.5;}
+.tl-evt.now{animation:nowPulse 2s infinite;box-shadow:0 0 0 2px var(--A);}
+
+/* Progress bar along time axis */
+.tl-progress-row{display:flex;gap:0;margin-top:8px;padding-top:8px;border-top:1px solid var(--brl);}
+.tl-progress-cell{min-width:80px;max-width:80px;height:4px;background:var(--bg);position:relative;}
+.tl-progress-cell.done{background:var(--P);opacity:.4;}
+.tl-progress-cell.active{background:linear-gradient(90deg,var(--P),var(--A));}
+.tl-now-marker{
+  position:absolute;top:-6px;width:2px;height:16px;
+  background:#EF4444;border-radius:2px;
+}
+.tl-now-marker::before{
+  content:'▼';position:absolute;top:-10px;left:-5px;
+  font-size:10px;color:#EF4444;
+}
+</style>
+</head>
+<body>
+<div id="shell">
+<header id="hdr">
+  <div class="logo">
+    <div class="logo-ico">✈️</div>
+    <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v1.6</div></div>
+  </div>
+  <div class="hdr-r">
+    <span id="odot" class="dot-on" title="Tiešsaistē"></span>
+    <button class="hbtn" id="sync-btn" onclick="syncUp()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Saglabāt
+    </button>
+    <button class="hico" onclick="toggleLayout()" title="Pārslēgt skatu">
+      <svg id="ico-desk" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <svg id="ico-mob" style="display:none" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="2.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="body">
+
+<!-- ═══ MAP WRAP (shared) ═══ -->
+<div id="map-wrap" style="display:none;position:absolute;inset:0;">
+  <div id="lmap"></div>
+  <div id="gmap">
+    <div id="gmap-nokey">
+      <div style="font-size:48px">🗺️</div>
+      <div class="nk-t">Google Maps API Atslēga</div>
+      <div class="nk-s">Ievadi API atslēgu iestatījumos sadaļā "Kartes sistēma", vai pārslēdzies uz OpenStreetMap — bez reģistrācijas!</div>
+      <button class="btn bg2" onclick="switchTab('set')">⚙️ Uz iestatījumiem</button>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div id="msbar">
+    <div id="msbar-row">
+      <input id="ms-inp" type="text" placeholder="🔍  Meklēt vietu kartē..." autocomplete="off">
+      <button id="ms-clr" onclick="clearSearch()">✕</button>
+      <button id="ms-btn" onclick="doSearch()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </button>
+      <div id="ms-ac"></div>
+    </div>
+  </div>
+
+  <!-- Map controls -->
+  <div id="map-ctrls">
+    <button class="map-ctrl-btn" onclick="fitAll()" title="Atiestatīt skatu uz visām vietām">🎯</button>
+    <button class="map-ctrl-btn" id="loc-btn" onclick="goToMyLocation()" title="Mana atrašanās vieta">📡</button>
+  </div>
+
+  <!-- Legend -->
+  <div id="mleg" style="display:none;">
+    <div class="ml-t">Leģenda</div>
+    <div class="ml-r"><span style="color:#1A5F58;font-size:18px">●</span> Vieta</div>
+    <div class="ml-r"><span style="color:#4ADE80;font-size:18px">●</span> Apmeklēta</div>
+    <div class="ml-r"><span style="color:var(--A);font-size:14px">——</span> Lidojums</div>
+  </div>
+
+  <!-- Click popup -->
+  <div id="mcp">
+    <div class="mcp-t">📍 Pievienot šo vietu?</div>
+    <div class="mcp-a" id="mcp-addr"></div>
+    <div style="display:flex;gap:6px">
+      <button class="btn bp bsm" onclick="addFromClick()">+ Pievienot</button>
+      <button class="btn bg2 bsm" onclick="hideClickPop()">Aizvērt</button>
+    </div>
+  </div>
+
+  <!-- FABs -->
+  <button class="mfab mfab-route" onclick="showRouteModal()" title="Pievienot lidojumu">✈️</button>
+  <button class="mfab mfab-add" onclick="showPlaceModal()" title="Pievienot vietu">+</button>
+</div>
+
+<!-- ═══ MOBILE ═══ -->
+<div id="mob">
+  <div id="tbar"><button class="tadd" onclick="showTripModal()">+</button><div id="tchips"></div></div>
+  <div id="ca">
+    <div class="pane on" id="p-map"></div>
+    <div class="pane" id="p-plans">
+      <div class="spad">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          <h2 class="sh">Ceļojuma plāns</h2>
+          <button class="btn bg2 bsm" onclick="exportPDF()" style="flex-shrink:0">📄 PDF</button>
+        </div>
+        <p class="ss" id="plans-sub"></p>
+        <div id="plans-now-wrap"></div>
+        <div id="plans-ct"></div>
+      </div>
+      <button class="fab fab-m" onclick="showPlaceModal()">+</button>
+    </div>
+    <div class="pane" id="p-docs">
+      <div class="spad"><h2 class="sh">Dokumenti</h2><p class="ss">Biļetes, rezervācijas, vaučeri un citi</p><div class="frow" id="doc-filt"></div><div id="docs-ct"></div></div>
+      <button class="fab fab-m" onclick="showDocModal()">+</button>
+    </div>
+    <div class="pane" id="p-trips">
+      <div class="spad"><h2 class="sh">Mani Ceļojumi</h2><p class="ss">Visi plānotie un pagātnes ceļojumi</p><div id="trips-ct"></div><button class="btn bp bfull" onclick="showTripModal()" style="margin-top:4px">+ Jauns Ceļojums</button></div>
+    </div>
+    <div class="pane" id="p-tl">
+      <div class="spad" id="tl-ct"></div>
+    </div>
+    <div class="pane" id="p-set"><div class="spad" id="set-ct"></div></div>
+  </div>
+  <nav id="bnav">
+    <button class="nb on" id="nb-map" onclick="switchTab('map')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Karte</button>
+    <button class="nb" id="nb-plans" onclick="switchTab('plans')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14" stroke-width="3" stroke-linecap="round"/></svg>Plāns</button>
+    <button class="nb" id="nb-docs" onclick="switchTab('docs')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Dokumenti</button>
+    <button class="nb" id="nb-trips" onclick="switchTab('trips')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>Ceļojumi</button>
+    <button class="nb" id="nb-tl" onclick="switchTab('tl')">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="12" x2="3.01" y2="12" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="18" x2="3.01" y2="18" stroke-width="3" stroke-linecap="round"/></svg>
+      Skala
+    </button>
+    <button class="nb" id="nb-set" onclick="switchTab('set')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Iestatījumi</button>
+  </nav>
+</div>
+
+<!-- ═══ DESKTOP ═══ -->
+<div id="desk">
+  <aside id="sb">
+    <div class="sb-top"><button class="sb-cbtn" onclick="toggleSb()"><svg id="sb-chev" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="transition:transform .22s"><path d="M15 18l-6-6 6-6"/></svg></button></div>
+    <div class="sb-trips" id="sb-trips"></div>
+    <nav class="sb-nav">
+      <button class="sn on" id="sn-map" onclick="switchTab('map')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span class="snlbl">Karte</span></button>
+      <button class="sn" id="sn-plans" onclick="switchTab('plans')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14" stroke-width="3" stroke-linecap="round"/></svg><span class="snlbl">Ceļojuma plāns</span></button>
+      <button class="sn" id="sn-docs" onclick="switchTab('docs')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="snlbl">Dokumenti</span></button>
+      <button class="sn" id="sn-trips" onclick="switchTab('trips')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg><span class="snlbl">Ceļojumi</span></button>
+      <button class="sn" id="sn-tl" onclick="switchTab('tl')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="12" x2="3.01" y2="12" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="18" x2="3.01" y2="18" stroke-width="3" stroke-linecap="round"/></svg><span class="snlbl">Laika skala</span></button>
+      <button class="sn" id="sn-set" onclick="switchTab('set')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="snlbl">Iestatījumi</span></button>
+    </nav>
+    <div class="sb-foot" id="sb-foot">Ceļojuma Plānotājs v1.6</div>
+  </aside>
+  <div id="dm">
+    <div class="dp on" id="dp-map"></div>
+    <div class="dp" id="dp-plans"><div class="dpad">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+        <h2 class="sh">Ceļojuma plāns</h2>
+        <button class="btn bg2 bsm" onclick="exportPDF()" style="flex-shrink:0">📄 Eksportēt PDF</button>
+      </div>
+      <p class="ss" id="d-plans-sub"></p>
+      <div id="d-plans-now-wrap"></div>
+      <div id="d-plans-ct"></div>
+    </div><button class="fab fab-d" onclick="showPlaceModal()">+</button></div>
+    <div class="dp" id="dp-docs"><div class="dpad"><h2 class="sh">Dokumenti</h2><p class="ss">Biļetes, rezervācijas, vaučeri un citi</p><div class="frow" id="d-doc-filt"></div><div id="d-docs-ct"></div></div><button class="fab fab-d" onclick="showDocModal()">+</button></div>
+    <div class="dp" id="dp-trips"><div class="dpad"><h2 class="sh">Mani Ceļojumi</h2><p class="ss">Visi plānotie un pagātnes ceļojumi</p><div id="d-trips-ct" class="trips-grid"></div><button class="btn bp" onclick="showTripModal()" style="margin-top:16px">+ Jauns Ceļojums</button></div></div>
+    <div class="dp" id="dp-tl"><div class="dpad" id="d-tl-ct"></div></div>
+    <div class="dp" id="dp-set"><div class="dpad" style="max-width:720px" id="d-set-ct"></div></div>
+  </div>
+</div>
+
+</div></div><!-- /body /shell -->
+
+<!-- PWA INSTALL BANNER -->
+<div id="pwa-banner">
+  <div class="pwa-banner-ico">✈️</div>
+  <div class="pwa-banner-txt">
+    <div class="pwa-banner-title">Instalēt kā lietotni</div>
+    <div class="pwa-banner-sub">Strādā bezsaistē · Ātrāk ielādējas</div>
+  </div>
+  <div class="pwa-banner-btns">
+    <button class="btn bp bsm" id="pwa-install-btn" onclick="triggerPwaInstall()">Instalēt</button>
+    <button class="btn bg2 bsm" onclick="hidePwaBanner()">Vēlāk</button>
+  </div>
+</div>
+<div id="nwrap"></div>
+<div id="mroot"></div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════
+const PT = [
+  {id:'attraction',lbl:'Apskates objekts',ico:'🏛️'},
+  {id:'hotel',lbl:'Naktsmītne',ico:'🏨'},
+  {id:'restaurant',lbl:'Restorāns',ico:'🍽️'},
+  {id:'transport',lbl:'Transports',ico:'🚌'},
+  {id:'activity',lbl:'Aktivitāte',ico:'🎭'},
+  {id:'other',lbl:'Cits',ico:'📍'}
+];
+const DT = [
+  {id:'lidojums',lbl:'Lidojuma biļete',ico:'✈️'},
+  {id:'vilciens',lbl:'Vilciena biļete',ico:'🚂'},
+  {id:'autobuss',lbl:'Autobusa biļete',ico:'🚌'},
+  {id:'kruizs',lbl:'Kruīzs / Kuģis',ico:'🚢'},
+  {id:'viesnca',lbl:'Viesnīcas rezervācija',ico:'🏨'},
+  {id:'auto_noma',lbl:'Auto noma',ico:'🚗'},
+  {id:'restorns',lbl:'Restorāna rezerv.',ico:'🍽️'},
+  {id:'pasak',lbl:'Pasākuma biļete',ico:'🎭'},
+  {id:'apdrosh',lbl:'Apdrošināšana',ico:'🛡️'},
+  {id:'viza',lbl:'Vīza / Dokuments',ico:'📋'},
+  {id:'vauceris',lbl:'Vaučers',ico:'🎫'},
+  {id:'cits',lbl:'Cits',ico:'📄'}
+];
+const GRDS = ['g1','g2','g3','g4','g5','g6'];
+const DOT_COL = ['#1A5F58','#D4712E','#5B21B6','#1E40AF','#9A3412','#14532D'];
+
+// Airport DB [IATA, Name, City, Country, lat, lng]
+const AIRPORTS = [
+  ['RIX','Rīga Starptautiskā','Rīga','LV',56.9236,23.9711],
+  ['TLL','Tallinn Lennart Meri','Tallinn','EE',59.4133,24.8328],
+  ['VNO','Vilnius','Viļņa','LT',54.6341,25.2858],
+  ['HEL','Helsinki Vantaa','Helsinki','FI',60.3172,24.9633],
+  ['ARN','Stockholm Arlanda','Stokholma','SE',59.6519,17.9186],
+  ['GOT','Gothenburg Landvetter','Gēteborga','SE',57.6628,12.2798],
+  ['CPH','Copenhagen Kastrup','Kopenhāgena','DK',55.6181,12.6560],
+  ['OSL','Oslo Gardermoen','Oslo','NO',60.1976,11.1004],
+  ['LHR','London Heathrow','Londona','GB',51.4775,-0.4614],
+  ['LGW','London Gatwick','Londona','GB',51.1481,-0.1903],
+  ['STN','London Stansted','Londona','GB',51.8850,0.2350],
+  ['LTN','London Luton','Londona','GB',51.8747,-0.3683],
+  ['CDG','Paris Charles de Gaulle','Parīze','FR',49.0097,2.5479],
+  ['ORY','Paris Orly','Parīze','FR',48.7233,2.3794],
+  ['AMS','Amsterdam Schiphol','Amsterdama','NL',52.3086,4.7639],
+  ['BRU','Brussels','Brisele','BE',50.9014,4.4844],
+  ['FRA','Frankfurt','Frankfurte','DE',50.0333,8.5706],
+  ['MUC','Munich','Minhene','DE',48.3538,11.7861],
+  ['DUS','Düsseldorf','Diseldorfa','DE',51.2895,6.7668],
+  ['HAM','Hamburg','Hamburga','DE',53.6303,9.9882],
+  ['BER','Berlin Brandenburg','Berlīne','DE',52.3667,13.5033],
+  ['ZRH','Zurich','Cīrihe','CH',47.4647,8.5492],
+  ['GVA','Geneva','Ženēva','CH',46.2381,6.1089],
+  ['VIE','Vienna','Vīne','AT',48.1103,16.5697],
+  ['FCO','Rome Fiumicino','Roma','IT',41.8003,12.2389],
+  ['MXP','Milan Malpensa','Milāna','IT',45.6306,8.7281],
+  ['BCN','Barcelona','Barselona','ES',41.2974,2.0833],
+  ['MAD','Madrid Barajas','Madride','ES',40.4936,-3.5669],
+  ['LIS','Lisbon','Lisabona','PT',38.7756,-9.1354],
+  ['OPO','Porto','Porto','PT',41.2481,-8.6814],
+  ['WAW','Warsaw Chopin','Varšava','PL',52.1657,20.9671],
+  ['KRK','Krakow','Krākova','PL',50.0778,19.7848],
+  ['PRG','Prague','Prāga','CZ',50.1008,14.2600],
+  ['BUD','Budapest','Budapešta','HU',47.4369,19.2556],
+  ['BEG','Belgrade','Belgrada','RS',44.8184,20.3092],
+  ['ATH','Athens','Atēnas','GR',37.9364,23.9445],
+  ['SKG','Thessaloniki','Saloniki','GR',40.5197,22.9709],
+  ['IST','Istanbul','Stambula','TR',41.2753,28.7519],
+  ['SAW','Istanbul Sabiha','Stambula','TR',40.8986,29.3092],
+  ['TBS','Tbilisi','Tbilisi','GE',41.6692,44.9547],
+  ['EVN','Yerevan Zvartnots','Erevāna','AM',40.1473,44.3959],
+  ['SVO','Moscow Sheremetyevo','Maskava','RU',55.9728,37.4147],
+  ['DME','Moscow Domodedovo','Maskava','RU',55.4086,37.9061],
+  ['LED','St Petersburg Pulkovo','Sanktpēterburga','RU',59.8003,30.2625],
+  ['JFK','New York JFK','Ņujorka','US',40.6413,-73.7781],
+  ['EWR','New York Newark','Ņujorka','US',40.6895,-74.1745],
+  ['LAX','Los Angeles','Los Andželosa','US',33.9425,-118.4081],
+  ['MIA','Miami','Maiami','US',25.7953,-80.2900],
+  ['ORD','Chicago O\'Hare','Čikāga','US',41.9742,-87.9073],
+  ['ATL','Atlanta','Atlanta','US',33.6407,-84.4277],
+  ['DFW','Dallas Fort Worth','Dalasa','US',32.8998,-97.0403],
+  ['SFO','San Francisco','Sanfrancisko','US',37.6213,-122.3790],
+  ['YYZ','Toronto Pearson','Toronto','CA',43.6772,-79.6306],
+  ['YVR','Vancouver','Vankūvera','CA',49.1967,-123.1815],
+  ['MEX','Mexico City','Mehiko','MX',19.4363,-99.0721],
+  ['GRU','São Paulo Guarulhos','Sanpaulu','BR',-23.4356,-46.4731],
+  ['GIG','Rio de Janeiro','Riodežaneiro','BR',-22.8097,-43.2508],
+  ['EZE','Buenos Aires Ezeiza','Buenosairesa','AR',-34.8222,-58.5358],
+  ['BOG','Bogotá El Dorado','Bogota','CO',4.7016,-74.1469],
+  ['SCL','Santiago','Santjago','CL',-33.3930,-70.7858],
+  ['DXB','Dubai','Dubaja','AE',25.2528,55.3644],
+  ['AUH','Abu Dhabi','Abūdabi','AE',24.4330,54.6511],
+  ['DOH','Doha Hamad','Doha','QA',25.2609,51.6138],
+  ['CAI','Cairo','Kaira','EG',30.1219,31.4056],
+  ['TLV','Tel Aviv Ben Gurion','Telaviva','IL',32.0114,34.8867],
+  ['BKK','Bangkok Suvarnabhumi','Bangkoka','TH',13.6900,100.7501],
+  ['DMK','Bangkok Don Mueang','Bangkoka','TH',13.9126,100.6067],
+  ['SIN','Singapore Changi','Singapūra','SG',1.3644,103.9915],
+  ['KUL','Kuala Lumpur','Kualalumpura','MY',2.7456,101.7072],
+  ['CGK','Jakarta Soekarno','Džakarta','ID',-6.1256,106.6558],
+  ['HKG','Hong Kong','Honkonga','HK',22.3080,113.9185],
+  ['PEK','Beijing Capital','Pekina','CN',40.0799,116.6031],
+  ['PVG','Shanghai Pudong','Šanhaja','CN',31.1434,121.8083],
+  ['ICN','Seoul Incheon','Seula','KR',37.4602,126.4407],
+  ['NRT','Tokyo Narita','Tokija','JP',35.7647,140.3864],
+  ['HND','Tokyo Haneda','Tokija','JP',35.5494,139.7798],
+  ['KIX','Osaka Kansai','Osaka','JP',34.4347,135.2441],
+  ['JNB','Johannesburg O.R. Tambo','Johannesburg','ZA',-26.1392,28.2460],
+  ['CPT','Cape Town','Keiptauna','ZA',-33.9715,18.6021],
+  ['NBO','Nairobi Jomo Kenyatta','Nairobi','KE',-1.3192,36.9275],
+  ['CMN','Casablanca','Kasablanka','MA',33.3675,-7.5900],
+  ['SYD','Sydney Kingsford Smith','Sidneja','AU',-33.9399,151.1753],
+  ['MEL','Melbourne','Melburna','AU',-37.6733,144.8433],
+  ['AKL','Auckland','Oklenda','NZ',-37.0082,174.7917]
+];
+
+// Themes config
+const THEMES = [
+  {id:'teal',  label:'Tirkīzs',   color:'#1A5F58'},
+  {id:'ocean', label:'Okeāns',    color:'#1E40AF'},
+  {id:'forest',label:'Mežs',      color:'#166534'},
+  {id:'sunset',label:'Saulriets', color:'#C2410C'},
+  {id:'violet',label:'Violets',   color:'#7C3AED'},
+  {id:'dark',  label:'Tumšais',   color:'#0F172A'}
+];
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let S = {
+  trips:[], places:[], docs:[], routes:[],
+  tripId:null, tab:'map',
+  syncUrl:'', autoSync:false,
+  isDesk:false, sbCol:false,
+  docFilter:'all',
+  theme:'teal', font:'app',
+  mapSystem:'osm', apiKey:'',
+  syncingUp:false
+};
+
+// Map instances
+let LMAP=null, GMAP=null;
+let L_MARKERS=[], L_ROUTE_LAYERS=[], L_ARC_LAYERS=[];
+let G_MARKERS=[], G_ROUTE_LAYERS=[], G_ARC_LAYERS=[];
+let pendingClick=null, searchPin=null;
+let acTimer=null, lastAcQ='';
+let selDocType='lidojums', selTripColor=1;
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+const uid   = () => Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const esc   = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const fd    = d => { if(!d)return''; const[y,m,dd]=d.split('-'); return `${dd}.${m}.${y}`; };
+const fdr   = (s,e) => s&&e?`${fd(s)}–${fd(e)}`:fd(s||e);
+const dbw   = (s,e) => s&&e?Math.round((new Date(e)-new Date(s))/86400000)+1:null;
+const getPT = id => PT.find(t=>t.id===id)||PT[5];
+const getDT = id => DT.find(t=>t.id===id)||DT[DT.length-1];
+const curT  = () => S.trips.find(t=>t.id===S.tripId)||null;
+const dotC  = c => DOT_COL[((c||1)-1)%6];
+const grdC  = c => GRDS[((c||1)-1)%6];
+const emH   = (ico,msg,act='') => `<div class="empty"><div class="eico">${ico}</div><p>${msg}</p>${act}</div>`;
+
+function lvmd(ds){
+  if(!ds)return'';
+  const d=new Date(ds+'T12:00:00');
+  const M=['Jan','Feb','Mar','Apr','Mai','Jūn','Jūl','Aug','Sep','Okt','Nov','Dec'];
+  const D=['Sv','P','O','T','C','Pk','S'];
+  return `${D[d.getDay()]}, ${d.getDate()}. ${M[d.getMonth()]}`;
+}
+function curPl(){
+  if(!S.tripId)return[];
+  return S.places.filter(p=>p.tripId===S.tripId).sort((a,b)=>{
+    if(a.date&&b.date&&a.date!==b.date)return a.date<b.date?-1:1;
+    if(a.time&&b.time)return a.time<b.time?-1:1;
+    return(a.cAt||0)-(b.cAt||0);
+  });
+}
+function curRts(){
+  if(!S.tripId)return[];
+  return S.routes.filter(r=>r.tripId===S.tripId).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+}
+const curDocs = ()=>!S.tripId?[]:S.docs.filter(d=>d.tripId===S.tripId).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+
+// Great circle arc (works offline)
+function gcArc(lat1,lng1,lat2,lng2,n=60){
+  const R2D=180/Math.PI,D2R=Math.PI/180;
+  const f1=lat1*D2R,l1=lng1*D2R,f2=lat2*D2R,l2=lng2*D2R;
+  const df=f2-f1,dl=l2-l1;
+  const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  const d=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  if(d<0.001)return[[lat1,lng1],[lat2,lng2]];
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const f=i/n;
+    const A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d);
+    const x=A*Math.cos(f1)*Math.cos(l1)+B*Math.cos(f2)*Math.cos(l2);
+    const y=A*Math.cos(f1)*Math.sin(l1)+B*Math.cos(f2)*Math.sin(l2);
+    const z=A*Math.sin(f1)+B*Math.sin(f2);
+    pts.push([Math.atan2(z,Math.sqrt(x*x+y*y))*R2D,Math.atan2(y,x)*R2D]);
+  }
+  // fix antimeridian
+  for(let i=1;i<pts.length;i++){
+    while(pts[i][1]-pts[i-1][1]>180)pts[i][1]-=360;
+    while(pts[i][1]-pts[i-1][1]<-180)pts[i][1]+=360;
+  }
+  return pts;
+}
+
+function gcDist(lat1,lng1,lat2,lng2){
+  const D2R=Math.PI/180;
+  const f1=lat1*D2R,f2=lat2*D2R,dl=(lng2-lng1)*D2R;
+  const a=Math.sin((f2-f1)/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  return Math.round(6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+
+function gcTime(dist){
+  const h=Math.floor(dist/900),m=Math.round((dist%900)/900*60);
+  return m?`~${h}h ${m}min`:`~${h}h`;
+}
+
+// Airport search (offline)
+function searchAirports(q){
+  q=q.trim().toUpperCase();
+  if(!q)return[];
+  return AIRPORTS.filter(a=>
+    a[0].startsWith(q)||
+    a[1].toUpperCase().includes(q)||
+    a[2].toUpperCase().includes(q)||
+    a[3]===q
+  ).slice(0,8);
+}
+
+// ══════════════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════════════
+function save(){
+  try{
+    localStorage.setItem('cp5_trips',JSON.stringify(S.trips));
+    localStorage.setItem('cp5_places',JSON.stringify(S.places));
+    localStorage.setItem('cp5_docs',JSON.stringify(S.docs));
+    localStorage.setItem('cp5_routes',JSON.stringify(S.routes));
+    localStorage.setItem('cp5_tripId',S.tripId||'');
+  }catch(e){}
+}
+function load(){
+  try{
+    S.trips  =JSON.parse(localStorage.getItem('cp5_trips')||'[]');
+    S.places =JSON.parse(localStorage.getItem('cp5_places')||'[]');
+    S.docs   =JSON.parse(localStorage.getItem('cp5_docs')||'[]');
+    S.routes =JSON.parse(localStorage.getItem('cp5_routes')||'[]');
+    S.tripId =localStorage.getItem('cp5_tripId')||null;
+    S.syncUrl  =localStorage.getItem('cp5_syncUrl')||'';
+    S.autoSync =localStorage.getItem('cp5_autoSync')==='true';
+    S.isDesk   =localStorage.getItem('cp5_desk')==='true';
+    S.sbCol    =localStorage.getItem('cp5_sbcol')==='true';
+    S.theme    =localStorage.getItem('cp5_theme')||'teal';
+    S.font     =localStorage.getItem('cp5_font')||'app';
+    S.mapSystem=localStorage.getItem('cp5_mapsys')||'osm';
+    S.apiKey   =localStorage.getItem('cp5_apiKey')||'';
+    if(S.tripId&&!S.trips.find(t=>t.id===S.tripId))S.tripId=null;
+    if(!S.tripId&&S.trips.length)S.tripId=S.trips[0].id;
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
+// THEME & FONT
+// ══════════════════════════════════════════════════════
+function applyTheme(t){
+  S.theme=t;localStorage.setItem('cp5_theme',t);
+  document.documentElement.setAttribute('data-theme',t==='teal'?'':t);
+}
+function applyFont(f){
+  S.font=f;localStorage.setItem('cp5_font',f);
+  document.documentElement.setAttribute('data-font',f==='app'?'':f);
+}
+
+// ══════════════════════════════════════════════════════
+// MAP SYSTEM
+// ══════════════════════════════════════════════════════
+function switchMapSystem(sys){
+  const changed=sys!==S.mapSystem;
+  S.mapSystem=sys;localStorage.setItem('cp5_mapsys',sys);
+  if(sys==='osm'){
+    document.getElementById('lmap').style.display='block';
+    document.getElementById('gmap').style.display='none';
+    if(GMAP){GMAP=null;G_MARKERS=[];G_ROUTE_LAYERS=[];G_ARC_LAYERS=[];}
+    if(!LMAP)initLeaflet();
+    else{LMAP.invalidateSize();renderMap();}
+  } else {
+    document.getElementById('lmap').style.display='none';
+    document.getElementById('gmap').style.display='block';
+    if(LMAP&&changed){LMAP.remove();LMAP=null;L_MARKERS=[];L_ROUTE_LAYERS=[];L_ARC_LAYERS=[];}
+    if(S.apiKey)loadGoogleScript(S.apiKey);
+    else{document.getElementById('gmap-nokey').style.display='flex';}
+  }
+}
+
+// ── LEAFLET ──
+function initLeaflet(){
+  if(LMAP)return;
+  const el=document.getElementById('lmap');
+  LMAP=L.map(el,{zoomControl:true,center:[56.946,24.106],zoom:7});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(LMAP);
+  LMAP.on('click',e=>{
+    if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+    revGeo(e.latlng.lat,e.latlng.lng,addr=>{
+      pendingClick={lat:e.latlng.lat,lng:e.latlng.lng,address:addr,name:''};
+      showClickPop(addr);
+    });
+  });
+  LMAP.on('click',hideAc);
+  renderMap();
+}
+
+function renderLeafletMap(){
+  if(!LMAP)return;
+  L_MARKERS.forEach(m=>m.remove());L_MARKERS=[];
+  L_ROUTE_LAYERS.forEach(l=>l.remove());L_ROUTE_LAYERS=[];
+  L_ARC_LAYERS.forEach(l=>l.remove());L_ARC_LAYERS=[];
+
+  const places=curPl().filter(p=>p.lat&&p.lng);
+  const routes=curRts().filter(r=>r.fromLat&&r.toLat);
+  const leg=document.getElementById('mleg');
+  if(leg)leg.style.display=(places.length||routes.length)?'block':'none';
+
+  const bounds=[];
+  places.forEach((p,i)=>{
+    const col=p.visited?'#4ADE80':'#1A5F58';
+    const pt=getPT(p.type);
+    const icon=L.divIcon({
+      className:'',
+      html:`<div style="background:${col};color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2.5px solid #fff;font-family:sans-serif;cursor:pointer">${i+1}</div>`,
+      iconSize:[34,34],iconAnchor:[17,17]
+    });
+    const m=L.marker([p.lat,p.lng],{icon}).addTo(LMAP);
+    m.bindPopup(`<div class="lpop">
+      <div class="lpop-name">${pt.ico} ${esc(p.name)}</div>
+      ${p.address?`<div class="lpop-sub">📍 ${esc(p.address)}</div>`:''}
+      ${p.date?`<div class="lpop-sub">📅 ${fd(p.date)}${p.time?' '+p.time:''}</div>`:''}
+      ${p.notes?`<div class="lpop-sub" style="font-style:italic">"${esc(p.notes)}"</div>`:''}
+      <div class="lpop-btns">
+        <button class="lpop-btn" style="background:var(--P);color:#fff" onclick="LMAP.closePopup();showPlaceModal('${p.id}')">✏️ Rediģēt</button>
+        <button class="lpop-btn" style="background:${p.visited?'#F3F4F6':'#DCFCE7'};color:${p.visited?'#6B7280':'#166534'}" onclick="toggleV('${p.id}')">${p.visited?'Neatmeklēts':'✓ Apmeklēts'}</button>
+      </div>
+    </div>`,{maxWidth:280});
+    L_MARKERS.push(m);
+    bounds.push([p.lat,p.lng]);
+  });
+
+  // Regular route line between places
+  if(places.length>=2){
+    const poly=L.polyline(places.map(p=>[p.lat,p.lng]),{color:'#1A5F58',weight:2.5,opacity:.4,dashArray:'8,8'}).addTo(LMAP);
+    L_ROUTE_LAYERS.push(poly);
+  }
+
+  // Flight arcs (great circle)
+  routes.forEach(r=>{
+    const pts=gcArc(r.fromLat,r.fromLng,r.toLat,r.toLng,80);
+    const arc=L.polyline(pts,{color:'#D4712E',weight:2,opacity:.7,dashArray:'6,4'}).addTo(LMAP);
+    L_ARC_LAYERS.push(arc);
+    bounds.push([r.fromLat,r.fromLng],[r.toLat,r.toLng]);
+    // Midpoint label
+    const mid=pts[Math.floor(pts.length/2)];
+    const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
+    const planeIcon=L.divIcon({
+      className:'',
+      html:`<div style="background:var(--A,#D4712E);color:#fff;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)">✈️ ${r.fromIata||''}→${r.toIata||''} ${dist}km</div>`,
+      iconAnchor:[40,10]
+    });
+    const ml=L.marker(mid,{icon:planeIcon,zIndexOffset:500,interactive:false}).addTo(LMAP);
+    L_ARC_LAYERS.push(ml);
+    // Endpoint markers
+    [[r.fromLat,r.fromLng,'🛫'],[r.toLat,r.toLng,'🛬']].forEach(([lat,lng,ico])=>{
+      const ei=L.divIcon({className:'',html:`<div style="font-size:20px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))">${ico}</div>`,iconSize:[24,24],iconAnchor:[12,12]});
+      const em=L.marker([lat,lng],{icon:ei,zIndexOffset:400}).addTo(LMAP);
+      em.bindPopup(`<div class="lpop"><div class="lpop-name">${ico==='🛫'?r.fromName:r.toName}</div><div class="lpop-sub">${r.flightNumber||''} · ${fd(r.date)}</div><div class="lpop-btns"><button class="lpop-btn" style="background:var(--P);color:#fff" onclick="LMAP.closePopup();showRouteModal('${r.id}')">✏️ Rediģēt</button><button class="lpop-btn" style="background:#FEF2F2;color:#DC2626" onclick="delRoute('${r.id}')">🗑️</button></div></div>`,{maxWidth:240});
+      L_ARC_LAYERS.push(em);
+    });
+  });
+
+  if(bounds.length===1)LMAP.setView(bounds[0],14);
+  else if(bounds.length>1)LMAP.fitBounds(bounds,{padding:[50,50]});
+}
+
+// ── GOOGLE MAPS ──
+function loadGoogleScript(key){
+  const existing=document.getElementById('gm-script');
+  if(existing)existing.remove();
+  document.getElementById('gmap-nokey').style.display='none';
+  const sc=document.createElement('script');
+  sc.id='gm-script';
+  sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=gmReady&loading=async`;
+  sc.onerror=()=>{notif('Nederīga Google Maps API atslēga!','err');document.getElementById('gmap-nokey').style.display='flex';};
+  document.head.appendChild(sc);
+}
+
+window.gmReady=function(){
+  document.getElementById('gmap-nokey').style.display='none';
+  GMAP=new google.maps.Map(document.getElementById('gmap'),{
+    center:{lat:56.946,lng:24.106},zoom:7,
+    mapTypeControl:false,fullscreenControl:false,streetViewControl:false,
+    styles:[{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]}]
+  });
+  GMAP.addListener('click',e=>{
+    if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+    const lat=e.latLng.lat(),lng=e.latLng.lng();
+    revGeoGoogle(lat,lng,addr=>{pendingClick={lat,lng,address:addr,name:''};showClickPop(addr);});
+  });
+  renderGoogleMap();
+  notif('Google Maps ielādēts! 🗺️','ok');
+};
+
+function renderGoogleMap(){
+  if(!GMAP)return;
+  G_MARKERS.forEach(m=>m.setMap(null));G_MARKERS=[];
+  G_ROUTE_LAYERS.forEach(l=>l.setMap(null));G_ROUTE_LAYERS=[];
+  G_ARC_LAYERS.forEach(l=>l.setMap(null));G_ARC_LAYERS=[];
+  const iw=new google.maps.InfoWindow();
+  const places=curPl().filter(p=>p.lat&&p.lng);
+  const routes=curRts().filter(r=>r.fromLat&&r.toLat);
+  const bounds=new google.maps.LatLngBounds();
+
+  places.forEach((p,i)=>{
+    const col=p.visited?'#4ADE80':'#1A5F58';
+    const pt=getPT(p.type);
+    const marker=new google.maps.Marker({
+      position:{lat:p.lat,lng:p.lng},map:GMAP,title:p.name,
+      label:{text:String(i+1),color:'#fff',fontWeight:'700',fontSize:'12px'},
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+    });
+    marker.addListener('click',()=>{
+      iw.setContent(`<div style="font-family:sans-serif;padding:12px;min-width:170px"><b style="font-size:14px">${pt.ico} ${esc(p.name)}</b>${p.address?`<div style="font-size:12px;color:#666;margin-top:4px">📍 ${esc(p.address)}</div>`:''}<div style="display:flex;gap:6px;margin-top:10px"><button onclick="showPlaceModal('${p.id}')" style="background:#1A5F58;color:#fff;border:none;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer">✏️</button><button onclick="toggleV('${p.id}')" style="background:${p.visited?'#F3F4F6':'#DCFCE7'};color:${p.visited?'#6B7280':'#166534'};border:none;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer">${p.visited?'Neatmeklēts':'✓ Apmeklēts'}</button></div></div>`);
+      iw.open(GMAP,marker);
+    });
+    G_MARKERS.push(marker);
+    bounds.extend({lat:p.lat,lng:p.lng});
+  });
+
+  if(places.length>=2){
+    const poly=new google.maps.Polyline({path:places.map(p=>({lat:p.lat,lng:p.lng})),geodesic:false,strokeColor:'#1A5F58',strokeOpacity:.4,strokeWeight:2.5,map:GMAP});
+    G_ROUTE_LAYERS.push(poly);
+  }
+
+  routes.forEach(r=>{
+    const pts=gcArc(r.fromLat,r.fromLng,r.toLat,r.toLng,80).map(([lat,lng])=>({lat,lng}));
+    const arc=new google.maps.Polyline({path:pts,geodesic:false,strokeColor:'#D4712E',strokeOpacity:.7,strokeWeight:2,map:GMAP});
+    G_ARC_LAYERS.push(arc);
+    bounds.extend({lat:r.fromLat,lng:r.fromLng});
+    bounds.extend({lat:r.toLat,lng:r.toLng});
+  });
+
+  if(!bounds.isEmpty()&&places.length+routes.length>0){
+    if(places.length+routes.length===1)GMAP.setCenter(places[0]?{lat:places[0].lat,lng:places[0].lng}:{lat:routes[0].fromLat,lng:routes[0].fromLng});
+    else GMAP.fitBounds(bounds,60);
+  }
+}
+
+// ── SHARED MAP FUNCTIONS ──
+function renderMap(){
+  if(S.mapSystem==='osm')renderLeafletMap();
+  else renderGoogleMap();
+}
+
+function fitAll(){
+  const places=curPl().filter(p=>p.lat&&p.lng);
+  const routes=curRts().filter(r=>r.fromLat&&r.toLat);
+  if(!places.length&&!routes.length){notif('Nav vietu kartē','err');return;}
+  if(S.mapSystem==='osm'&&LMAP){
+    const pts=[...places.map(p=>[p.lat,p.lng]),...routes.flatMap(r=>[[r.fromLat,r.fromLng],[r.toLat,r.toLng]])];
+    if(pts.length===1)LMAP.setView(pts[0],14);
+    else LMAP.fitBounds(pts,{padding:[50,50]});
+  } else if(GMAP){
+    const b=new google.maps.LatLngBounds();
+    places.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
+    routes.forEach(r=>{b.extend({lat:r.fromLat,lng:r.fromLng});b.extend({lat:r.toLat,lng:r.toLng});});
+    GMAP.fitBounds(b,60);
+  }
+}
+
+function toggleV(id){
+  const p=S.places.find(x=>x.id===id);
+  if(p){p.visited=!p.visited;save();if(LMAP)LMAP.closePopup();renderMap();notif(p.visited?'✅ Apmeklēts!':'Atzīme noņemta','ok');}
+}
+
+// ── MY LOCATION (improved — handles permission denial) ──
+let myLocMarker=null;
+let myLocRing=null;
+function goToMyLocation(){
+  const btn=document.getElementById('loc-btn');
+  // Check if permission already denied
+  if(navigator.permissions){
+    navigator.permissions.query({name:'geolocation'}).then(result=>{
+      if(result.state==='denied'){
+        showLocFallback();return;
+      }
+      doGeolocate(btn);
+    }).catch(()=>doGeolocate(btn));
+  } else {
+    doGeolocate(btn);
+  }
+}
+function doGeolocate(btn){
+  if(!navigator.geolocation){showLocFallback();return;}
+  if(btn){btn.textContent='⏳';btn.disabled=true;}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      if(btn){btn.textContent='📡';btn.disabled=false;}
+      const lat=pos.coords.latitude,lng=pos.coords.longitude;
+      placeMyLocMarker(lat,lng,pos.coords.accuracy);
+      notif(`📍 Atrašanās vieta (±${Math.round(pos.coords.accuracy)}m)`,'ok');
+    },
+    err=>{
+      if(btn){btn.textContent='📡';btn.disabled=false;}
+      if(err.code===1){showLocFallback();}
+      else{const msgs={2:'Atrašanās vieta nav pieejama',3:'Timeout'};notif(msgs[err.code]||'Kļūda','err');}
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:30000}
+  );
+}
+function placeMyLocMarker(lat,lng,acc){
+  if(S.mapSystem==='osm'&&LMAP){
+    LMAP.setView([lat,lng],14);
+    if(myLocMarker){myLocMarker.remove();}
+    if(myLocRing){myLocRing.remove();}
+    const icon=L.divIcon({className:'',
+      html:'<div class="my-loc-ring"><div class="my-loc-dot"></div></div>',
+      iconSize:[22,22],iconAnchor:[11,11]});
+    myLocMarker=L.marker([lat,lng],{icon,zIndexOffset:2000,interactive:false}).addTo(LMAP);
+    if(acc){myLocRing=L.circleMarker([lat,lng],{radius:Math.min(Math.max(acc/8,8),50),color:'#3B82F6',weight:1,fillColor:'#3B82F6',fillOpacity:.1,interactive:false}).addTo(LMAP);}
+  } else if(GMAP){
+    GMAP.setCenter({lat,lng});GMAP.setZoom(14);
+  }
+}
+function showLocFallback(){
+  modal('📍 Atrašanās vieta',`
+    <p style="font-size:13px;color:var(--mu);margin-bottom:16px">
+      Pārlūks liedz piekļuvi atrašanās vietai. Vari meklēt pilsētu vai vietu manuāli.
+    </p>
+    <div class="fg"><label class="fl">Meklēt vietu vai pilsētu</label>
+      <div class="loc-search-row">
+        <input class="inp loc-search-inp" id="loc-q" placeholder="piem. Rīga, Latvija" autocomplete="off">
+        <button class="btn bp bsm" onclick="locSearch()">Atrast</button>
+      </div>
+      <div id="loc-results" style="margin-top:6px"></div>
+    </div>
+    <p style="font-size:11px;color:var(--mu);margin-top:12px">
+      💡 Lai atļautu automātisko atrašanās vietu: Pārlūkā → Vietnes iestatījumi → Atrašanās vieta → Atļaut
+    </p>
+    <div class="macts"><button class="btn bg2" onclick="closeModal()">Aizvērt</button></div>`);
+  setTimeout(()=>document.getElementById('loc-q')?.focus(),100);
+}
+async function locSearch(){
+  const q=(document.getElementById('loc-q')?.value||'').trim();
+  if(!q)return;
+  const res=document.getElementById('loc-results');
+  res.innerHTML='<div style="font-size:12px;color:var(--mu)"><span class="spin" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>Meklē...</div>';
+  try{
+    const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=4`);
+    const data=await r.json();
+    const feats=data.features||[];
+    if(!feats.length){res.innerHTML='<div style="font-size:12px;color:var(--mu)">Nav atrasts</div>';return;}
+    res.innerHTML=feats.map(f=>{
+      const[lng,lat]=f.geometry.coordinates;
+      const pr=f.properties;
+      const name=[pr.name,pr.city,pr.country].filter(Boolean).join(', ');
+      return `<div class="ap-it" onclick="goToCoords(${lat},${lng})">${esc(name)}</div>`;
+    }).join('');
+  }catch(e){res.innerHTML='<div style="font-size:12px;color:var(--mu)">Kļūda meklējot</div>';}
+}
+function goToCoords(lat,lng){
+  closeModal();
+  placeMyLocMarker(lat,lng,null);
+  if(S.tab!=='map')switchTab('map');
+}
+
+// ══════════════════════════════════════════════════════
+// TIMELINE (visual trip overview)
+// ══════════════════════════════════════════════════════
+function renderTimeline(ctId){
+  const ct=document.getElementById(ctId);if(!ct)return;
+  const trip=curT();
+  if(!trip){ct.innerHTML=`<h2 class="sh">Laika skala</h2><p class="ss">Ceļojuma vizuālais pārskats</p>${emH('📅','Nav izvēlēts ceļojums')}`;return;}
+
+  const {todayStr}=getNow();
+  const pls=curPl();const rts=curRts();
+  const allItems=[...pls.map(p=>({...p,_t:'place'})),...rts.map(r=>({...r,_t:'route'}))];
+
+  // Build date range
+  let minDate=trip.startDate||null,maxDate=trip.endDate||null;
+  allItems.forEach(it=>{
+    if(it.date){if(!minDate||it.date<minDate)minDate=it.date;if(!maxDate||it.date>maxDate)maxDate=it.date;}
+  });
+  if(!minDate){ct.innerHTML=`<h2 class="sh">Laika skala</h2><p class="ss">Ceļojuma vizuālais pārskats</p>${emH('📅','Pievienojiet vietas ar datumiem, lai redzētu laika skalu')}`;return;}
+  // Extend by 1 day each side for visual breathing
+  const minD=new Date(minDate+'T12:00:00');
+  const maxD=new Date(maxDate+'T12:00:00');
+  const totalDays=Math.round((maxD-minD)/86400000)+1;
+
+  // Stats
+  const pc=pls.length,rc=rts.length,vc=pls.filter(p=>p.visited).length;
+  const days=dbw(trip.startDate,trip.endDate);
+
+  let h=`<h2 class="sh">Laika skala</h2>
+    <p class="ss">${trip.name}${fdr(trip.startDate,trip.endDate)?' · '+fdr(trip.startDate,trip.endDate):''}</p>
+    <div class="tl-trip-summary">
+      <div class="tl-trip-stat"><div class="tl-trip-stat-n">${days||totalDays}</div><div class="tl-trip-stat-l">Dienas</div></div>
+      <div class="tl-trip-stat"><div class="tl-trip-stat-n">${pc}</div><div class="tl-trip-stat-l">Vietas</div></div>
+      <div class="tl-trip-stat"><div class="tl-trip-stat-n">${rc}</div><div class="tl-trip-stat-l">Lidojumi</div></div>
+      <div class="tl-trip-stat"><div class="tl-trip-stat-n">${vc}</div><div class="tl-trip-stat-l">Apmeklētas</div></div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:11px;color:var(--mu);margin-bottom:4px">Progress</div>
+        <div style="height:6px;background:var(--br);border-radius:6px;overflow:hidden">
+          <div style="height:100%;background:var(--P);border-radius:6px;width:${pc?Math.round(vc/pc*100):0}%;transition:width .5s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-top:2px">${pc?Math.round(vc/pc*100):0}% apmeklēts</div>
+      </div>
+    </div>
+    <div class="tl-legend">
+      ${[['attraction','#2563EB','🏛️','Apskates obj.'],['hotel','#7C3AED','🏨','Naktsmītnes'],['restaurant','#EA580C','🍽️','Restorāni'],['transport','#059669','🚌','Transports'],['activity','#DB2777','🎭','Aktivitātes'],['route','linear-gradient(135deg,#1A5F58,#D4712E)','✈️','Lidojumi']].map(([id,col,ico,lbl])=>
+        `<div class="tl-leg-item"><div class="tl-leg-dot" style="background:${col}"></div>${ico} ${lbl}</div>`
+      ).join('')}
+    </div>`;
+
+  // Build columns per day
+  h+='<div class="tl-outer"><div class="tl-grid" id="tl-grid-inner">';
+
+  // Now indicator column position
+  const isInRange=todayStr>=minDate&&todayStr<=maxDate;
+  let todayOffset=0;
+  if(isInRange){
+    todayOffset=Math.round((new Date(todayStr+'T12:00:00')-minD)/86400000);
+  }
+
+  for(let d=0;d<totalDays;d++){
+    const dateObj=new Date(minD.getTime()+d*86400000);
+    const dateStr=dateObj.toISOString().slice(0,10);
+    const isToday=dateStr===todayStr;
+    const isPast=dateStr<todayStr;
+    const dayItems=allItems.filter(it=>it.date===dateStr);
+
+    // Day label
+    const dayNames=['Sv','P','O','T','C','Pk','S'];
+    const months=['Jan','Feb','Mar','Apr','Mai','Jūn','Jūl','Aug','Sep','Okt','Nov','Dec'];
+    const dn=dayNames[dateObj.getDay()];
+    const dm=dateObj.getDate();
+    const mm=months[dateObj.getMonth()];
+
+    h+=`<div class="tl-day-col ${isToday?'tl-day-today':''}${isPast?' tl-day-past':''}">
+      <div class="tl-day-header">
+        <div class="tl-day-date">${dn} ${mm}</div>
+        <div class="tl-day-name">${dm}</div>
+      </div>
+      <div class="tl-day-col-inner">`;
+
+    dayItems.forEach(it=>{
+      const st=isToday?itemStatus(it):(isPast?'past':'future');
+      if(it._t==='route'){
+        const dist=gcDist(it.fromLat,it.fromLng,it.toLat,it.toLng);
+        h+=`<div class="tl-event tl-ev-route${st==='past'?' tl-event-past':''}${st==='now'?' tl-event-now':''}"
+          onclick="showRouteModal('${it.id}')" title="${esc(it.fromIata||'?')}→${esc(it.toIata||'?')}">
+          <span class="tl-event-ico">✈️</span>
+          <div class="tl-event-name">${esc(it.fromIata||'?')}→${esc(it.toIata||'?')}</div>
+          <div class="tl-event-sub">${dist.toLocaleString()} km</div>
+          ${it.departureTime?`<div class="tl-event-sub">${it.departureTime}${it.arrivalTime?' – '+it.arrivalTime:''}</div>`:''}
+        </div>`;
+      } else {
+        const pt=getPT(it.type);
+        const colMap={attraction:'tl-ev-attraction',hotel:'tl-ev-hotel',restaurant:'tl-ev-restaurant',transport:'tl-ev-transport',activity:'tl-ev-activity',other:'tl-ev-other'};
+        const cls=colMap[it.type]||'tl-ev-other';
+        h+=`<div class="tl-event ${cls}${it.visited?' tl-event-past':''}${st==='now'?' tl-event-now':''}"
+          onclick="showPlaceModal('${it.id}')" title="${esc(it.name)}">
+          <span class="tl-event-ico">${pt.ico}</span>
+          <div class="tl-event-name">${esc(it.name.length>20?it.name.slice(0,18)+'…':it.name)}</div>
+          ${it.time?`<div class="tl-event-sub">🕐 ${it.time}</div>`:''}
+          ${it.visited?'<div class="tl-event-sub">✓ Apmeklēts</div>':''}
+        </div>`;
+      }
+    });
+
+    if(!dayItems.length){
+      h+='<div style="height:30px;border-left:1px dashed var(--br);margin-left:10px;opacity:.3"></div>';
+    }
+    h+='</div></div>';
+  }
+
+  h+='</div>';// tl-grid
+
+  // Inject NOW line via JS after render
+  if(isInRange){
+    h+=`<div id="tl-now-data" data-day="${todayOffset}" style="display:none"></div>`;
+  }
+  h+='</div>';// tl-outer
+
+  // Items without dates
+  const noDate=allItems.filter(it=>!it.date);
+  if(noDate.length){
+    h+=`<div style="margin-top:16px"><h3 style="font-size:14px;font-weight:700;color:var(--mu);margin-bottom:8px">📌 Bez datuma</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    noDate.forEach(it=>{
+      if(it._t==='route'){
+        h+=`<div class="tl-event tl-ev-route" style="min-width:100px" onclick="showRouteModal('${it.id}')"><span class="tl-event-ico">✈️</span><div class="tl-event-name">${it.fromIata||'?'}→${it.toIata||'?'}</div></div>`;
+      } else {
+        const pt=getPT(it.type);const colMap={attraction:'tl-ev-attraction',hotel:'tl-ev-hotel',restaurant:'tl-ev-restaurant',transport:'tl-ev-transport',activity:'tl-ev-activity',other:'tl-ev-other'};
+        h+=`<div class="tl-event ${colMap[it.type]||'tl-ev-other'}" style="min-width:80px" onclick="showPlaceModal('${it.id}')"><span class="tl-event-ico">${pt.ico}</span><div class="tl-event-name">${esc(it.name.slice(0,16))}</div></div>`;
+      }
+    });
+    h+='</div></div>';
+  }
+
+  ct.innerHTML=h;
+
+  // Position NOW line
+  requestAnimationFrame(()=>{
+    const nd=document.getElementById('tl-now-data');
+    const grid=document.getElementById('tl-grid-inner');
+    if(!nd||!grid)return;
+    const dayIdx=parseInt(nd.dataset.day);
+    const cols=grid.querySelectorAll('.tl-day-col');
+    if(!cols[dayIdx])return;
+    const colRect=cols[dayIdx].getBoundingClientRect();
+    const gridRect=grid.getBoundingClientRect();
+    const {nowH,nowMin}=getNow();
+    const fracOfDay=(nowH*60+nowMin)/1440;
+    const x=colRect.left-gridRect.left+colRect.width*fracOfDay;
+    const nowLine=document.createElement('div');
+    nowLine.className='tl-now-col';
+    nowLine.style.left=x+'px';
+    nowLine.innerHTML='<div class="tl-now-label">● TAGAD</div>';
+    grid.appendChild(nowLine);
+    // Scroll to today
+    const outer=grid.parentElement;
+    outer.scrollLeft=Math.max(0,x-outer.clientWidth/2);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// PWA INSTALL
+// ══════════════════════════════════════════════════════
+function showPwaBanner(){
+  const b=document.getElementById('pwa-banner');if(b)b.classList.add('show');
+}
+function hidePwaBanner(){
+  const b=document.getElementById('pwa-banner');if(b)b.classList.remove('show');
+  localStorage.setItem('cp5_pwa_dismissed',Date.now());
+}
+async function triggerPwaInstall(){
+  if(window.cpDeferredPrompt){
+    window.cpDeferredPrompt.prompt();
+    const{outcome}=await window.cpDeferredPrompt.userChoice;
+    window.cpDeferredPrompt=null;
+    hidePwaBanner();
+    if(outcome==='accepted')notif('Lietotne instalēta! 🎉','ok');
+  } else {
+    // iOS Safari fallback
+    notif('iOS: nospied Kopīgot → Pievienot sākuma ekrānam','inf');
+    hidePwaBanner();
+  }
+}
+function initPWABanner(){
+  const dismissed=parseInt(localStorage.getItem('cp5_pwa_dismissed')||'0');
+  const oneDayAgo=Date.now()-86400000*3;
+  if(dismissed>oneDayAgo)return; // don't show again for 3 days
+  // Show when prompt is ready
+  window.addEventListener('pwaReady',()=>setTimeout(showPwaBanner,3000));
+  window.addEventListener('pwaInstalled',hidePwaBanner);
+  // iOS detection (no beforeinstallprompt)
+  const isIOS=/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+  const isInStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
+  if(isIOS&&!isInStandalone){
+    setTimeout(()=>{
+      if(dismissed<oneDayAgo)showPwaBanner();
+    },4000);
+  }
+}
+
+// Reverse geocode
+async function revGeo(lat,lng,cb){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'User-Agent':'CelojumaPlānotājs/1.6'}});
+    const d=await r.json();cb(d.display_name||`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+  }catch(e){cb(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);}
+}
+function revGeoGoogle(lat,lng,cb){
+  if(!google?.maps){cb('');return;}
+  new google.maps.Geocoder().geocode({location:{lat,lng}},(res,st)=>cb(st==='OK'&&res[0]?res[0].formatted_address:`${lat.toFixed(5)}, ${lng.toFixed(5)}`));
+}
+
+// ── SEARCH ──
+function setupSearch(){
+  const i=document.getElementById('ms-inp');
+  i.addEventListener('input',()=>{
+    const q=i.value.trim();
+    document.getElementById('ms-clr').classList.toggle('show',q.length>0);
+    if(q.length<2){hideAc();return;}
+    clearTimeout(acTimer);acTimer=setTimeout(()=>fetchAc(q),300);
+  });
+  i.addEventListener('keydown',e=>{if(e.key==='Enter'){hideAc();doSearch();}if(e.key==='Escape')clearSearch();});
+  document.addEventListener('click',e=>{if(!document.getElementById('msbar').contains(e.target))hideAc();});
+}
+
+async function fetchAc(q){
+  if(q===lastAcQ)return;lastAcQ=q;
+  const ac=document.getElementById('ms-ac');
+  ac.innerHTML='<div style="padding:10px 16px;font-size:13px;color:var(--mu);display:flex;align-items:center;gap:8px"><span class="spin"></span>Meklē...</div>';
+  ac.classList.add('show');
+  try{
+    const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=lv`;
+    const r=await fetch(url);if(!r.ok)throw new Error(r.status);
+    const data=await r.json();
+    const feats=(data.features||[]).slice(0,6);
+    if(!feats.length){ac.innerHTML='<div style="padding:10px 16px;font-size:13px;color:var(--mu)">Nav atrasts</div>';return;}
+    ac.innerHTML=feats.map(f=>{
+      const pr=f.properties;
+      const[lng,lat]=f.geometry.coordinates;
+      const name=pr.name||pr.city||pr.street||q;
+      const sub=[pr.street,pr.city,pr.country].filter(Boolean).slice(0,2).join(', ');
+      const ico=photonIco(pr.osm_value||pr.type||'');
+      const sl=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const sa=([pr.name,...[pr.street,pr.city,pr.country].filter(Boolean)]).join(', ').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div class="ac-it" onclick="pickAc(${lat},${lng},'${sl}','${sa}')"><span class="ac-ico">${ico}</span><div><div class="ac-name">${esc(name)}</div>${sub?`<div class="ac-sub">${esc(sub)}</div>`:''}</div></div>`;
+    }).join('');
+    ac.classList.add('show');
+  }catch(e){ac.innerHTML='<div style="padding:10px 16px;font-size:13px;color:var(--mu)">Kļūda meklējot</div>';}
+}
+
+function photonIco(t){
+  t=(t||'').toLowerCase();
+  if(t.includes('hotel')||t.includes('accommodat'))return'🏨';
+  if(t.includes('restaurant')||t.includes('cafe'))return'🍽️';
+  if(t.includes('airport')||t.includes('aerodrome'))return'✈️';
+  if(t.includes('railway')||t.includes('train'))return'🚂';
+  if(t.includes('museum'))return'🏛️';
+  if(t.includes('park')||t.includes('forest'))return'🌿';
+  if(t.includes('beach'))return'🏖️';
+  if(t.includes('mountain')||t.includes('peak'))return'⛰️';
+  return'📍';
+}
+
+function doSearch(){
+  const q=(document.getElementById('ms-inp').value||'').trim();
+  if(!q)return;hideAc();
+  fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1`)
+    .then(r=>r.json()).then(data=>{
+      const f=(data.features||[])[0];
+      if(!f){notif('Nav atrasts. Mēģini precīzāku nosaukumu.','err');return;}
+      const[lng,lat]=f.geometry.coordinates;
+      const pr=f.properties;
+      const name=pr.name||pr.city||q;
+      const addr=[pr.name,pr.street,pr.city,pr.country].filter(Boolean).join(', ');
+      pickAc(lat,lng,name,addr);
+    }).catch(()=>notif('Kļūda meklējot','err'));
+}
+
+function pickAc(lat,lng,name,addr){
+  hideAc();
+  document.getElementById('ms-inp').value=name||addr;
+  document.getElementById('ms-clr').classList.add('show');
+  pendingClick={lat,lng,address:addr,name};
+  showClickPop(addr);
+  // Pan map
+  if(S.mapSystem==='osm'&&LMAP)LMAP.setView([lat,lng],15);
+  else if(GMAP)GMAP.panTo({lat,lng});
+  // Search pin
+  if(searchPin&&S.mapSystem==='osm'){searchPin.remove();searchPin=null;}
+  if(S.mapSystem==='osm'&&LMAP){
+    const icon=L.divIcon({className:'',html:`<div style="background:var(--A,#D4712E);color:#fff;padding:5px 10px;border-radius:12px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap">🔍 ${esc((name||'').slice(0,25))}</div>`,iconAnchor:[0,0]});
+    searchPin=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(LMAP);
+  }
+}
+
+function clearSearch(){
+  document.getElementById('ms-inp').value='';lastAcQ='';
+  document.getElementById('ms-clr').classList.remove('show');
+  hideAc();hideClickPop();
+  if(searchPin&&S.mapSystem==='osm'){searchPin.remove();searchPin=null;}
+}
+function hideAc(){const ac=document.getElementById('ms-ac');if(ac){ac.classList.remove('show');ac.innerHTML='';}}
+function showClickPop(addr){
+  const el=document.getElementById('mcp'),a=document.getElementById('mcp-addr');
+  a.textContent=(addr||'').slice(0,90);el.style.display='block';
+}
+function hideClickPop(){document.getElementById('mcp').style.display='none';pendingClick=null;if(searchPin&&S.mapSystem==='osm'){searchPin.remove();searchPin=null;}}
+function addFromClick(){
+  if(!pendingClick)return;if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+  const pre={...pendingClick};hideClickPop();showPlaceModal(null,pre);
+}
+
+// ══════════════════════════════════════════════════════
+// LAYOUT
+// ══════════════════════════════════════════════════════
+function toggleLayout(){
+  S.isDesk=!S.isDesk;localStorage.setItem('cp5_desk',S.isDesk);applyLayout();renderAll();
+}
+function toggleSb(){
+  S.sbCol=!S.sbCol;localStorage.setItem('cp5_sbcol',S.sbCol);applySb();
+  if(S.mapSystem==='osm'&&LMAP)setTimeout(()=>LMAP.invalidateSize(),220);
+  else if(GMAP)setTimeout(()=>google.maps.event.trigger(GMAP,'resize'),220);
+}
+function applyLayout(){
+  const mob=document.getElementById('mob'),desk=document.getElementById('desk');
+  if(S.isDesk){
+    mob.style.display='none';desk.style.display='flex';
+    document.getElementById('ico-desk').style.display='none';
+    document.getElementById('ico-mob').style.display='block';
+    document.body.classList.add('is-desk');
+    ensureMapIn('dp-map');
+  }else{
+    mob.style.display='flex';desk.style.display='none';
+    document.getElementById('ico-desk').style.display='block';
+    document.getElementById('ico-mob').style.display='none';
+    document.body.classList.remove('is-desk');
+    ensureMapIn('p-map');
+  }
+  applySb();
+  if(S.mapSystem==='osm'&&LMAP)setTimeout(()=>LMAP.invalidateSize(),80);
+  else if(GMAP)setTimeout(()=>google.maps.event.trigger(GMAP,'resize'),80);
+}
+function applySb(){
+  const sb=document.getElementById('sb'),ch=document.getElementById('sb-chev'),ft=document.getElementById('sb-foot');
+  if(!sb)return;sb.classList.toggle('col',S.sbCol);
+  if(ch)ch.style.transform=S.sbCol?'rotate(180deg)':'';
+  sb.querySelectorAll('.snlbl,.sbl,.stname').forEach(el=>el.style.display=S.sbCol?'none':'');
+  sb.querySelectorAll('.staddbtn span').forEach(el=>el.style.display=S.sbCol?'none':'');
+  if(ft)ft.style.display=S.sbCol?'none':'';
+}
+function ensureMapIn(pid){
+  const mw=document.getElementById('map-wrap'),par=document.getElementById(pid);
+  if(!mw||!par)return;if(mw.parentElement!==par){par.innerHTML='';par.appendChild(mw);}
+  mw.style.cssText='display:block;position:absolute;inset:0;';
+}
+
+// ══════════════════════════════════════════════════════
+// TAB SWITCH
+// ══════════════════════════════════════════════════════
+function switchTab(tab){
+  S.tab=tab;
+  if(S.isDesk){
+    document.querySelectorAll('[id^="dp-"]').forEach(p=>p.classList.remove('on'));
+    document.querySelectorAll('.sn').forEach(b=>b.classList.remove('on'));
+    const dp=document.getElementById('dp-'+tab);if(dp)dp.classList.add('on');
+    const sn=document.getElementById('sn-'+tab);if(sn)sn.classList.add('on');
+    if(tab==='map'){ensureMapIn('dp-map');setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP)LMAP.invalidateSize();else if(GMAP)google.maps.event.trigger(GMAP,'resize');},80);renderMap();}
+    else if(tab==='plans')renderPlan('d-plans-ct','d-plans-sub',true);
+    else if(tab==='docs')renderDocs('d-docs-ct','d-doc-filt',true);
+    else if(tab==='trips')renderTrips('d-trips-ct');
+    else if(tab==='tl')renderTimeline('d-tl-ct');
+    else if(tab==='set')renderSet('d-set-ct');
+  }else{
+    document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+    document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+    const pane=document.getElementById('p-'+tab);if(pane)pane.classList.add('on');
+    const nb=document.getElementById('nb-'+tab);if(nb)nb.classList.add('on');
+    if(tab==='map'){ensureMapIn('p-map');setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP)LMAP.invalidateSize();else if(GMAP)google.maps.event.trigger(GMAP,'resize');},80);renderMap();}
+    else if(tab==='plans')renderPlan('plans-ct','plans-sub',false);
+    else if(tab==='docs')renderDocs('docs-ct','doc-filt',false);
+    else if(tab==='trips')renderTrips('trips-ct');
+    else if(tab==='tl')renderTimeline('tl-ct');
+    else if(tab==='set')renderSet('set-ct');
+  }
+}
+function renderAll(){renderTBar();renderSbTrips();switchTab(S.tab);}
+
+// ══════════════════════════════════════════════════════
+// TRIP BAR & SIDEBAR
+// ══════════════════════════════════════════════════════
+function renderTBar(){
+  const c=document.getElementById('tchips');if(!c)return;c.innerHTML='';
+  S.trips.forEach(t=>{const b=document.createElement('button');b.className='tchip'+(t.id===S.tripId?' on':'');b.textContent=t.name;b.onclick=()=>selTrip(t.id);c.appendChild(b);});
+}
+function renderSbTrips(){
+  const c=document.getElementById('sb-trips');if(!c)return;
+  c.innerHTML=`<span class="sbl">CEĻOJUMI</span>
+    ${S.trips.map(t=>`<button class="stchip${t.id===S.tripId?' on':''}" onclick="selTrip('${t.id}')" title="${esc(t.name)}"><span class="stdot" style="background:${dotC(t.color)};flex-shrink:0"></span><span class="stname">${esc(t.name)}</span></button>`).join('')}
+    <button class="staddbtn" onclick="showTripModal()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>Jauns ceļojums</span></button>`;
+  applySb();
+}
+const selTrip=id=>{S.tripId=id;save();renderAll();};
+
+// ══════════════════════════════════════════════════════
+// PLAN — with NOW indicator & flight progress
+// ══════════════════════════════════════════════════════
+
+// Returns {nowMs, todayStr} for current time comparisons
+function getNow(){
+  const n=new Date();
+  return {nowMs:n.getTime(),todayStr:n.toISOString().slice(0,10),
+    nowTimeStr:n.toTimeString().slice(0,5),nowH:n.getHours(),nowMin:n.getMinutes()};
+}
+
+// Check if a place/route is currently happening
+function itemStatus(it){
+  const {nowMs,todayStr,nowTimeStr}=getNow();
+  if(!it.date)return 'future';
+  if(it.date<todayStr)return 'past';
+  if(it.date>todayStr)return 'future';
+  // Same day
+  if(it._type==='route'){
+    // Flight: use departureTime & arrivalTime if set, otherwise full day
+    if(it.departureTime&&it.arrivalTime){
+      if(nowTimeStr<it.departureTime)return 'future';
+      if(nowTimeStr>it.arrivalTime)return 'past';
+      return 'now';
+    }
+    return 'now'; // flight day = in progress
+  }
+  if(it.time){
+    if(nowTimeStr<it.time)return 'future';
+    // Consider 2h window as "now"
+    const [h,m]=it.time.split(':').map(Number);
+    const startMs=new Date().setHours(h,m,0,0);
+    if(nowMs-startMs<7200000)return 'now';
+    return 'past';
+  }
+  return 'now'; // same day, no time = today
+}
+
+// Flight progress 0..100
+function flightProgress(r){
+  const {todayStr,nowH,nowMin}=getNow();
+  if(r.date!==todayStr)return null;
+  if(!r.departureTime||!r.arrivalTime)return 50; // mid-flight estimate
+  const toMin=s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
+  const dep=toMin(r.departureTime),arr=toMin(r.arrivalTime);
+  const now=nowH*60+nowMin;
+  if(now<=dep)return 0;if(now>=arr)return 100;
+  return Math.round((now-dep)/(arr-dep)*100);
+}
+
+function renderNowPanel(nowWrapId){
+  const el=document.getElementById(nowWrapId);if(!el)return;
+  const {todayStr}=getNow();
+  const trip=curT();if(!trip)return;
+  // Find today's items
+  const items=[...curPl(),...curRts()].filter(it=>it.date===todayStr);
+  const activeRoutes=curRts().filter(r=>{
+    if(r.date!==todayStr)return false;
+    if(r.departureTime&&r.arrivalTime){
+      const {nowH,nowMin}=getNow();const nm=nowH*60+nowMin;
+      const toMin=s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
+      return nm>=toMin(r.departureTime)&&nm<=toMin(r.arrivalTime);
+    }
+    return false;
+  });
+  if(!items.length&&!activeRoutes.length){el.innerHTML='';return;}
+  let h='';
+  // Active flights get a big progress card
+  activeRoutes.forEach(r=>{
+    const pct=flightProgress(r);const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
+    h+=`<div style="background:linear-gradient(135deg,var(--P),var(--A));border-radius:18px;padding:16px;color:#fff;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:18px">✈️</span>
+        <div>
+          <div style="font-weight:700;font-size:15px">${r.fromIata}→${r.toIata} · Ceļā!</div>
+          <div style="font-size:12px;opacity:.8">${esc(r.fromName)} → ${esc(r.toName)}</div>
+        </div>
+      </div>
+      <div class="flight-progress-wrap">
+        <div class="flight-progress-labels"><span>🛫 ${r.departureTime||'?'}</span><span>${pct}% veikts</span><span>🛬 ${r.arrivalTime||'?'}</span></div>
+        <div class="flight-progress-bar"><div class="flight-progress-fill" style="width:${pct}%"></div></div>
+        <div style="text-align:center;font-size:12px;opacity:.8;margin-top:4px">✈️ ${Math.round(dist*pct/100)} km no ${dist} km · ${gcTime(dist)}</div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML=h;
+}
+
+function renderPlan(ctId,subId,desk){
+  const ct=document.getElementById(ctId);if(!ct)return;
+  const sub=document.getElementById(subId);const trip=curT();
+  const nowWrapId=desk?'d-plans-now-wrap':'plans-now-wrap';
+  if(!trip){if(sub)sub.textContent='Nav izvēlēts ceļojums';ct.innerHTML=emH('🗺️','Izvēlies vai pievieno ceļojumu');renderNowPanel(nowWrapId);return;}
+  if(sub)sub.textContent=trip.name+(fdr(trip.startDate,trip.endDate)?' · '+fdr(trip.startDate,trip.endDate):'');
+  renderNowPanel(nowWrapId);
+  const pls=curPl();const rts=curRts();
+  if(!pls.length&&!rts.length){ct.innerHTML=emH('📅','Vēl nav pievienotu vietu vai lidojumu','<button class="btn bp bsm" onclick="showPlaceModal()">+ Vieta</button> <button class="btn bp bsm" onclick="showRouteModal()">✈️ Lidojums</button>');return;}
+  const items=[...pls.map(p=>({...p,_type:'place'})),...rts.map(r=>({...r,_type:'route'}))];
+  items.sort((a,b)=>{if(a.date&&b.date&&a.date!==b.date)return a.date<b.date?-1:1;if(a.time&&b.time)return a.time<b.time?-1:1;return(a.cAt||0)-(b.cAt||0);});
+  const byD={},noD=[];
+  items.forEach(it=>{if(it.date){if(!byD[it.date])byD[it.date]=[];byD[it.date].push(it);}else noD.push(it);});
+  let h=desk?'<div class="plan-grid">':'';let day=1;
+  const {todayStr}=getNow();let nowInserted=false;
+  const sortedDates=Object.keys(byD).sort();
+  sortedDates.forEach(date=>{
+    const isToday=date===todayStr;
+    h+=`<div class="tlday"><div class="tldh"${isToday?' style="color:#EF4444;border-bottom-color:#FECACA"':''}>📅 ${lvmd(date)} · Diena ${day++}${isToday?' · <span style="color:#EF4444">ŠODIEN</span>':''}</div>`;
+    byD[date].forEach((it,i,arr)=>{
+      const isLast=i===arr.length-1;
+      const st=itemStatus(it);
+      // Insert NOW bar before first future item on today
+      if(isToday&&!nowInserted&&st==='future'){
+        nowInserted=true;
+        h+=`<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`;
+      }
+      const dotCls=st==='now'?'r':st==='past'?'v':it._type==='route'?'r':'';
+      h+=`<div class="tli"><div class="tll"><div class="tldot ${dotCls}"></div>${!isLast?'<div class="tlline"></div>':''}</div><div class="tlc">`;
+      if(it._type==='route')h+=renderRouteCard(it,false,st);
+      else h+=renderPlaceCard(it,isLast,st);
+      h+='</div></div>';
+    });
+    // If today and all items are past, insert NOW at end
+    if(isToday&&!nowInserted){
+      nowInserted=true;
+      h+=`<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`;
+    }
+    h+='</div>';
+  });
+  // Insert NOW before future dates if not yet inserted and today is between dates
+  if(!nowInserted&&sortedDates.some(d=>d<todayStr)&&sortedDates.some(d=>d>todayStr)){
+    // Already rendered all past days, NOW is between days
+  }
+  if(noD.length){
+    h+='<div class="tlday"><div class="tldh">📌 Bez datuma</div>';
+    noD.forEach(it=>{
+      h+='<div class="tli"><div class="tll"><div class="tldot '+(it._type==='route'?'r':it.visited?'v':'')+'"></div></div><div class="tlc">';
+      if(it._type==='route')h+=renderRouteCard(it,false,'future');else h+=renderPlaceCard(it,true,'future');
+      h+='</div></div>';
+    });
+    h+='</div>';
+  }
+  if(desk)h+='</div>';
+  ct.innerHTML=h;
+}
+
+function renderPlaceCard(p,isLast,status){
+  const pt=getPT(p.type);
+  const isPast=status==='past';const isNow=status==='now';
+  return `<div class="card" style="margin-bottom:${isLast?'0':'8px'};opacity:${isPast?.7:1}">
+    <div class="crow"><div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px">
+        <span class="badge b-${p.type}">${pt.ico} ${pt.lbl}</span>
+        ${p.visited?'<span class="badge b-visited">✓</span>':''}
+        ${isNow?'<span class="badge" style="background:#FEF2F2;color:#EF4444;animation:nowPulse 2s infinite">● Tagad</span>':''}
+      </div>
+      <div class="ctit">${esc(p.name)}</div>
+      ${p.time?`<div class="csub">🕐 ${p.time}</div>`:''}
+      ${p.address?`<div class="csub">📍 ${esc(p.address)}</div>`:''}
+      ${p.notes?`<div class="csub" style="font-style:italic">"${esc(p.notes)}"</div>`:''}
+    </div>
+    <div class="cacts">
+      <button class="ibt" onclick="toggleV('${p.id}')" title="Apmeklēts"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <button class="ibt" onclick="showPlaceModal('${p.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      <button class="ibt del" onclick="delPlace('${p.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+    </div></div>
+  </div>`;
+}
+
+function renderRouteCard(r,standalone,status){
+  const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
+  const time=gcTime(dist);
+  const isNow=status==='now';const isPast=status==='past';
+  const pct=isNow?flightProgress(r):null;
+  return `<div class="route-card" style="margin-bottom:8px;opacity:${isPast?.7:1}">
+    <div class="crow">
+      <div style="flex:1">
+        <div class="route-from-to"><span class="route-iata">${r.fromIata||'?'}</span><span class="route-arrow">✈️</span><span class="route-iata">${r.toIata||'?'}</span>${isNow?'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;animation:nowPulse 2s infinite">● Ceļā</span>':''}</div>
+        <div style="font-size:13px;opacity:.9;margin-bottom:4px">${esc(r.fromName)} → ${esc(r.toName)}</div>
+        <div class="route-meta">
+          ${r.flightNumber?`<span>✈️ ${esc(r.flightNumber)}</span>`:''}
+          ${r.date?`<span>📅 ${fd(r.date)}</span>`:''}
+          ${r.departureTime?`<span>🛫 ${r.departureTime}</span>`:''}
+          ${r.arrivalTime?`<span>🛬 ${r.arrivalTime}</span>`:''}
+          <span>🕐 ${time}</span>
+        </div>
+        <div class="route-dist">${dist.toLocaleString()} km · lielais loks</div>
+        ${pct!==null?`<div class="flight-progress-wrap">
+          <div class="flight-progress-bar"><div class="flight-progress-fill" style="width:${pct}%"></div></div>
+          <div style="font-size:10px;opacity:.8;text-align:center;margin-top:3px">${pct}% maršruta veikts · ${Math.round(dist*pct/100)} / ${dist} km</div>
+        </div>`:''}
+      </div>
+      <div class="cacts" style="flex-direction:column">
+        <button class="ibt" style="background:rgba(255,255,255,.2);color:#fff" onclick="showRouteModal('${r.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="ibt del" style="background:rgba(255,255,255,.15);color:#fff" onclick="delRoute('${r.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// DOCUMENTS
+// ══════════════════════════════════════════════════════
+function renderDocs(ctId,filtId,desk){
+  const ct=document.getElementById(ctId);if(!ct)return;
+  const flt=document.getElementById(filtId);const trip=curT();
+  if(!trip){if(flt)flt.innerHTML='';ct.innerHTML=emH('📄','Nav izvēlēts ceļojums');return;}
+  const docs=curDocs();const used=new Set(docs.map(d=>d.type));
+  if(flt)flt.innerHTML=[{id:'all',lbl:'Visi',ico:'🗂️'},...DT.filter(t=>used.has(t.id))].map(f=>`<button class="fpill${S.docFilter===f.id?' on':''}" onclick="setDF('${f.id}')">${f.ico} ${f.lbl}</button>`).join('');
+  const filtered=S.docFilter==='all'?docs:docs.filter(d=>d.type===S.docFilter);
+  if(!filtered.length){ct.innerHTML=emH('🎫',docs.length?'Nav šāda tipa':'Vēl nav dokumentu','<button class="btn ba bsm" onclick="showDocModal()">+ Pievienot</button>');return;}
+  ct.innerHTML=(desk?'<div class="docs-grid">':'')+filtered.map(d=>{
+    const dt=getDT(d.type);
+    return `<div class="card"><div class="crow">
+      <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0">
+        <span style="font-size:24px;flex-shrink:0">${dt.ico}</span>
+        <div style="flex:1;min-width:0">
+          <span class="badge b-${d.type}" style="margin-bottom:5px">${dt.lbl}</span>
+          <div class="ctit">${esc(d.title)}</div>
+          ${d.provider?`<div class="csub">🏢 ${esc(d.provider)}</div>`:''}
+          ${d.date?`<div class="csub">📅 ${fd(d.date)}</div>`:''}
+          ${d.confirmationNumber?`<div class="csub" style="font-family:monospace;font-size:11px">📋 ${esc(d.confirmationNumber)}</div>`:''}
+          ${d.notes?`<div class="csub" style="font-style:italic">"${esc(d.notes)}"</div>`:''}
+          ${d.fileName?`<div class="csub" style="color:var(--P)">📎 ${esc(d.fileName)}</div>`:''}
+        </div>
+      </div>
+      <div class="cacts" style="flex-direction:column">
+        <button class="ibt" onclick="showDocModal('${d.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        ${d.fileData?`<button class="ibt" onclick="dlFile('${d.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>`:''}
+        <button class="ibt del" onclick="delDoc('${d.id}')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </div>
+    </div></div>`;
+  }).join('')+(desk?'</div>':'');
+}
+const setDF=f=>{S.docFilter=f;if(S.isDesk)renderDocs('d-docs-ct','d-doc-filt',true);else renderDocs('docs-ct','doc-filt',false);};
+function dlFile(id){const d=S.docs.find(x=>x.id===id);if(d?.fileData){const a=document.createElement('a');a.href=d.fileData;a.download=d.fileName||'dokuments';a.click();}}
+
+// ══════════════════════════════════════════════════════
+// TRIPS
+// ══════════════════════════════════════════════════════
+function renderTrips(ctId){
+  const ct=document.getElementById(ctId);if(!ct)return;
+  if(!S.trips.length){ct.innerHTML=emH('✈️','Nav ceļojumu. Sāc ar pirmo!');return;}
+  ct.innerHTML=S.trips.map(t=>{
+    const pc=S.places.filter(p=>p.tripId===t.id).length;
+    const dc=S.docs.filter(d=>d.tripId===t.id).length;
+    const rc=S.routes.filter(r=>r.tripId===t.id).length;
+    const days=dbw(t.startDate,t.endDate);
+    return `<div class="tcard" onclick="selTrip('${t.id}')">
+      <div class="tch ${grdC(t.color)}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="tcn">${esc(t.name)}</div><div class="tcd">📍 ${esc(t.destination||'Galamērķis nav norādīts')}</div><div class="tcdt">${fdr(t.startDate,t.endDate)}${days?' · '+days+' dienas':''}</div></div>
+          ${t.id===S.tripId?'<span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px">Aktīvs</span>':''}
+        </div>${t.description?`<div style="font-size:12px;opacity:.75;margin-top:8px">${esc(t.description)}</div>`:''}
+      </div>
+      <div class="tcb">
+        <div class="tcst">
+          <div><div class="tcsn">${pc}</div><div class="tcsl">Vietas</div></div>
+          <div><div class="tcsn">${rc}</div><div class="tcsl">Lidoj.</div></div>
+          <div><div class="tcsn">${dc}</div><div class="tcsl">Dok.</div></div>
+          ${days?`<div><div class="tcsn">${days}</div><div class="tcsl">Dienas</div></div>`:''}
+        </div>
+        <div style="display:flex;gap:6px"><button class="btn bg2 bsm" onclick="event.stopPropagation();showTripModal('${t.id}')">✏️</button><button class="btn bd bsm" onclick="event.stopPropagation();delTrip('${t.id}')">🗑️</button></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════
+function renderSet(id){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=`
+    <h2 class="sh">Iestatījumi</h2>
+    <p class="ss">Izskata, kartes un datu pārvaldība</p>
+
+    ${setS('app','🎨 Izskats',`
+      <div class="sec-lbl">Krāsu tēma</div>
+      <div class="theme-grid">
+        ${THEMES.map(t=>`<div class="tsw${S.theme===t.id?' on':''}" style="background:${t.color}" onclick="applyTheme('${t.id}')" title="${t.label}"><span class="tsw-check">${S.theme===t.id?'✓':''}</span></div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--mu);margin:4px 0 12px">${THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')}</div>
+      <div class="sec-lbl">Fonta stils</div>
+      <div class="font-row">
+        <button class="fntbtn${S.font==='app'?' on':''}" style="font-family:'DM Sans',sans-serif" onclick="applyFont('app')">
+          <div style="font-size:16px">Aa</div>
+          <div>Lietotnes fonts</div>
+          <div style="font-size:10px;opacity:.7">DM Sans + Lora</div>
+        </button>
+        <button class="fntbtn${S.font==='system'?' on':''}" style="font-family:system-ui,sans-serif" onclick="applyFont('system')">
+          <div style="font-size:16px">Aa</div>
+          <div>Sistēmas fonts</div>
+          <div style="font-size:10px;opacity:.7">Ātrāk ielādējas</div>
+        </button>
+      </div>`)}
+
+    ${setS('map','🗺️ Kartes sistēma',`
+      <div class="mapsys-row">
+        <button class="msbtn${S.mapSystem==='osm'?' on':''}" onclick="setMapSys('osm')">
+          <span class="msbtn-ico">🌍</span>
+          <span>OpenStreetMap</span>
+          <span style="font-size:10px;opacity:.7">Bez reģistrācijas</span>
+        </button>
+        <button class="msbtn${S.mapSystem==='google'?' on':''}" onclick="setMapSys('google')">
+          <span class="msbtn-ico">📍</span>
+          <span>Google Maps</span>
+          <span style="font-size:10px;opacity:.7">Nepieciešama API atslēga</span>
+        </button>
+      </div>
+      ${S.mapSystem==='google'?`<div class="fg" style="margin-top:12px"><label class="fl">Google Maps API Atslēga</label>
+        <input class="inp" id="gapi-inp" type="text" placeholder="AIzaSy..." value="${esc(S.apiKey)}" oninput="S.apiKey=this.value;localStorage.setItem('cp5_apiKey',this.value)">
+        <p style="font-size:11px;color:var(--mu);margin-top:5px">Nepieciešamas: Maps JavaScript API + Places API<br><a href="https://console.cloud.google.com" target="_blank" style="color:var(--P)">console.cloud.google.com</a></p>
+      </div>
+      <button class="btn bp bsm" onclick="activateGoogle()">Aktivizēt Google Maps</button>`:''}
+      <button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab('map');fitAll()">🎯 Atiestatīt skatu</button>`)}
+
+    ${setS('sync','☁️ Google Sheets Sinhronizācija',`
+      <div class="fg"><label class="fl">Apps Script URL</label>
+        <input class="inp" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(S.syncUrl)}" oninput="S.syncUrl=this.value;localStorage.setItem('cp5_syncUrl',this.value)">
+      </div>
+      <div class="srow"><div><b style="font-size:13px">Automātiskā sinhronizācija</b><div style="font-size:11px;color:var(--mu)">Ielādēt atverot lietotni</div></div>
+        <button class="tog${S.autoSync?' on':''}" id="as-tog" onclick="toggleAS()"></button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt mākonī</button>
+        <button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt no mākoņa</button>
+      </div>`)}
+
+    ${setS('asc','📋 Apps Script Kods',`
+      <p style="font-size:12px;color:var(--mu);margin-bottom:10px">1. <b>script.google.com</b> → Jauns projekts<br>2. Ielīmē kodu<br>3. Izvēto: Execute as: Me · Access: Anyone<br>4. Kopē URL</p>
+      <div class="codeblk" id="asc-c">function doGet(e){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sh=ss.getSheetByName('CelojumsData');
+  if(!sh)sh=ss.insertSheet('CelojumsData');
+  var v=sh.getRange('A1').getValue();
+  var d=v?JSON.parse(v):{trips:[],places:[],docs:[],routes:[]};
+  return ContentService.createTextOutput(
+    JSON.stringify({ok:true,data:d})
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+function doPost(e){
+  try{
+    var ss=SpreadsheetApp.getActiveSpreadsheet();
+    var sh=ss.getSheetByName('CelojumsData');
+    if(!sh)sh=ss.insertSheet('CelojumsData');
+    var p=JSON.parse(e.postData.contents);
+    if(p.action==='save'){
+      sh.getRange('A1').setValue(JSON.stringify(p.data));
+      return ContentService.createTextOutput(
+        JSON.stringify({ok:true})
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+  }catch(err){
+    return ContentService.createTextOutput(
+      JSON.stringify({ok:false,error:err.message})
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}</div>
+      <button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>`)}
+
+    ${setS('dt','💾 Lokālie dati',`
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON rezerves kopiju</button>
+        <label class="btn bg2 bsm" style="cursor:pointer;justify-content:center">📤 Importēt JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label>
+        <button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button>
+      </div>`)}
+    <div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">
+      Ceļojuma Plānotājs v1.5 · Karte: OpenStreetMap / Google Maps<br>
+      Lidojumu maršruti aprēķināti bezsaistē (lielā loks)
+    </div>`;
+}
+function setS(id,title,body){return `<div class="sset"><div class="sseth" onclick="togSet('${id}')"><span>${title}</span><svg id="sc-${id}" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="transition:transform .2s;color:var(--mu)"><path d="M19 9l-7 7-7-7"/></svg></div><div id="sb-${id}" style="display:none" class="ssetb">${body}</div></div>`;}
+function togSet(id){const b=document.getElementById('sb-'+id),c=document.getElementById('sc-'+id);if(!b)return;const op=b.style.display!=='none';b.style.display=op?'none':'block';if(c)c.style.transform=op?'':'rotate(180deg)';}
+function toggleAS(){S.autoSync=!S.autoSync;localStorage.setItem('cp5_autoSync',S.autoSync);const t=document.getElementById('as-tog');if(t)t.classList.toggle('on',S.autoSync);}
+
+function setMapSys(sys){
+  switchMapSystem(sys);
+  if(S.tab==='set'){if(S.isDesk)renderSet('d-set-ct');else renderSet('set-ct');}
+  else switchTab('map');
+}
+function activateGoogle(){
+  const k=(document.getElementById('gapi-inp')?.value||S.apiKey).trim();
+  if(!k){notif('Ievadi API atslēgu!','err');return;}
+  S.apiKey=k;localStorage.setItem('cp5_apiKey',k);
+  loadGoogleScript(k);notif('Ielādē Google Maps...','inf');
+  switchTab('map');
+}
+function cpScript(){const el=document.getElementById('asc-c');if(el)navigator.clipboard.writeText(el.textContent).then(()=>notif('Kods nokopēts!','ok'));}
+
+// ══════════════════════════════════════════════════════
+// SYNC
+// ══════════════════════════════════════════════════════
+async function syncUp(){
+  if(!S.syncUrl){notif('Iestatījumos norādi Apps Script URL!','err');return;}
+  if(S.syncingUp)return;S.syncingUp=true;
+  const btn=document.getElementById('sync-btn');if(btn)btn.textContent='⏳ Saglabā...';
+  try{
+    await fetch(S.syncUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',data:{trips:S.trips,places:S.places,docs:S.docs,routes:S.routes}})});
+    notif('Saglabāts mākonī! ☁️','ok');
+  }catch(e){notif('Kļūda: '+e.message,'err');}
+  finally{S.syncingUp=false;if(btn)btn.innerHTML='<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Saglabāt';}
+}
+async function syncDown(){
+  if(!S.syncUrl){notif('Iestatījumos norādi Apps Script URL!','err');return;}
+  notif('Ielādē...','inf');
+  try{
+    const r=await fetch(S.syncUrl+'?action=get',{mode:'cors'});const j=await r.json();
+    if(j.ok&&j.data){
+      if(j.data.trips)S.trips=j.data.trips;if(j.data.places)S.places=j.data.places;
+      if(j.data.docs)S.docs=j.data.docs;if(j.data.routes)S.routes=j.data.routes;
+      if(!S.tripId&&S.trips.length)S.tripId=S.trips[0].id;
+      save();renderAll();notif('Dati ielādēti! ✅','ok');
+    }
+  }catch(e){notif('Kļūda: '+e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════
+// TRIP MODAL
+// ══════════════════════════════════════════════════════
+function showTripModal(editId){
+  const t=editId?S.trips.find(x=>x.id===editId):null;selTripColor=t?(t.color||1):1;
+  modal(t?'Rediģēt ceļojumu':'Jauns ceļojums ✈️',`
+    <div class="fg"><label class="fl">Nosaukums *</label><input class="inp" id="tm-n" value="${esc(t?t.name:'')}" placeholder="piem. Parīze 2025"></div>
+    <div class="fg"><label class="fl">Galamērķis</label><input class="inp" id="tm-d" value="${esc(t?t.destination||'':'')}" placeholder="piem. Paris, France"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div><label class="fl">Sākums</label><input class="inp" type="date" id="tm-s" value="${t?t.startDate||'':''}"></div>
+      <div><label class="fl">Beigas</label><input class="inp" type="date" id="tm-e" value="${t?t.endDate||'':''}"></div>
+    </div>
+    <div class="fg"><label class="fl">Apraksts</label><textarea class="inp" id="tm-desc">${esc(t?t.description||'':'')}</textarea></div>
+    <div class="fg"><label class="fl">Krāsa</label>
+      <div class="swrow">${[1,2,3,4,5,6].map(c=>`<div class="sw ${grdC(c)}${selTripColor===c?' on':''}" id="sw-${c}" onclick="pickTC(${c})"></div>`).join('')}</div>
+    </div>
+    <div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn bp" onclick="saveTrip('${editId||''}')">${t?'Saglabāt':'Izveidot'}</button></div>`);
+  setTimeout(()=>document.getElementById('tm-n')?.focus(),80);
+}
+function pickTC(c){selTripColor=c;document.querySelectorAll('.sw').forEach(s=>s.classList.remove('on'));document.getElementById('sw-'+c)?.classList.add('on');}
+function saveTrip(editId){
+  const name=(document.getElementById('tm-n').value||'').trim();
+  if(!name){notif('Norādi nosaukumu!','err');return;}
+  const data={name,destination:(document.getElementById('tm-d').value||'').trim(),startDate:document.getElementById('tm-s').value,endDate:document.getElementById('tm-e').value,description:(document.getElementById('tm-desc').value||'').trim(),color:selTripColor};
+  if(editId){const t=S.trips.find(x=>x.id===editId);if(t)Object.assign(t,data);notif('Atjaunināts!','ok');}
+  else{const nt={id:uid(),...data,cAt:Date.now()};S.trips.push(nt);S.tripId=nt.id;notif('Ceļojums izveidots! ✈️','ok');}
+  save();closeModal();renderAll();
+}
+async function delTrip(id){
+  const t=S.trips.find(x=>x.id===id);if(!t)return;
+  if(!await conf2(`Dzēst ceļojumu "${t.name}"?`,'Dzēst?'))return;
+  S.trips=S.trips.filter(x=>x.id!==id);S.places=S.places.filter(x=>x.tripId!==id);
+  S.docs=S.docs.filter(x=>x.tripId!==id);S.routes=S.routes.filter(x=>x.tripId!==id);
+  if(S.tripId===id)S.tripId=S.trips.length?S.trips[0].id:null;
+  save();renderAll();notif('Dzēsts','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// PLACE MODAL
+// ══════════════════════════════════════════════════════
+function showPlaceModal(editId,prefill){
+  if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+  const p=editId?S.places.find(x=>x.id===editId):null;const pre=prefill||{};
+  const lat=p?p.lat||'':pre.lat||'',lng=p?p.lng||'':pre.lng||'';
+  const addr=p?p.address||'':pre.address||'',name=p?p.name:pre.name||'';
+  modal(p?'Rediģēt vietu':'Pievienot vietu 📍',`
+    <div class="fg"><label class="fl">Vietas nosaukums *</label><input class="inp" id="pm-n" value="${esc(name)}" placeholder="piem. Eiffel Tower"></div>
+    <div class="fg"><label class="fl">Tips</label><select class="inp" id="pm-t">${PT.map(t=>`<option value="${t.id}"${p?.type===t.id?' selected':''}>${t.ico} ${t.lbl}</option>`).join('')}</select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div><label class="fl">Datums</label><input class="inp" type="date" id="pm-d" value="${p?p.date||'':''}"></div>
+      <div><label class="fl">Laiks</label><input class="inp" type="time" id="pm-ti" value="${p?p.time||'':''}"></div>
+    </div>
+    <div class="fg"><label class="fl">Adrese</label><input class="inp" id="pm-a" value="${esc(addr)}" placeholder="No kartes vai ievadi manuāli">
+      <div class="ctxt" id="pm-c">${lat?`📍 ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`:'Nav koordinātu — meklē kartē un klikšķini'}</div>
+      <input type="hidden" id="pm-lat" value="${lat}"><input type="hidden" id="pm-lng" value="${lng}">
+    </div>
+    <div class="fg"><label class="fl">Piezīmes</label><textarea class="inp" id="pm-no">${esc(p?p.notes||'':'')}</textarea></div>
+    ${p?`<div class="fg"><label class="fl">Statuss</label><div style="display:flex;gap:8px">
+      <button type="button" id="pv-no" class="btn bsm" style="${!p.visited?'background:var(--P);color:#fff':'background:var(--bg);border:1.5px solid var(--br)'}" onclick="setPV(false)">Plānots</button>
+      <button type="button" id="pv-yes" class="btn bsm" style="${p.visited?'background:#DCFCE7;color:#166534;border:1.5px solid #4ADE80':'background:var(--bg);border:1.5px solid var(--br)'}" onclick="setPV(true)">✅ Apmeklēts</button>
+    </div><input type="hidden" id="pm-vis" value="${p.visited?'1':'0'}"></div>`:'<input type="hidden" id="pm-vis" value="0">'}
+    <div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn bp" onclick="savePl('${editId||''}')">${p?'Saglabāt':'Pievienot'}</button></div>`);
+  setTimeout(()=>document.getElementById('pm-n')?.focus(),80);
+}
+function setPV(v){
+  document.getElementById('pm-vis').value=v?'1':'0';
+  const y=document.getElementById('pv-yes'),n=document.getElementById('pv-no');if(!y||!n)return;
+  y.style.cssText=v?'background:#DCFCE7;color:#166534;border:1.5px solid #4ADE80':'background:var(--bg);border:1.5px solid var(--br)';
+  n.style.cssText=v?'background:var(--bg);border:1.5px solid var(--br)':'background:var(--P);color:#fff';
+}
+function savePl(editId){
+  const name=(document.getElementById('pm-n').value||'').trim();if(!name){notif('Norādi vietas nosaukumu!','err');return;}
+  const lat=parseFloat(document.getElementById('pm-lat').value)||null;
+  const lng=parseFloat(document.getElementById('pm-lng').value)||null;
+  const data={tripId:S.tripId,name,type:document.getElementById('pm-t').value,date:document.getElementById('pm-d').value,time:document.getElementById('pm-ti').value,address:(document.getElementById('pm-a').value||'').trim(),lat,lng,notes:(document.getElementById('pm-no').value||'').trim(),visited:document.getElementById('pm-vis').value==='1'};
+  if(editId){const p=S.places.find(x=>x.id===editId);if(p)Object.assign(p,data);notif('Vieta atjaunināta!','ok');}
+  else{S.places.push({id:uid(),...data,cAt:Date.now()});notif('Vieta pievienota! 📍','ok');}
+  save();closeModal();
+  if(S.tab==='map')renderMap();
+  else if(S.tab==='plans'){if(S.isDesk)renderPlan('d-plans-ct','d-plans-sub',true);else renderPlan('plans-ct','plans-sub',false);}
+}
+async function delPlace(id){
+  const p=S.places.find(x=>x.id===id);if(!p)return;
+  if(!await conf2(`Dzēst vietu "${p.name}"?`))return;
+  S.places=S.places.filter(x=>x.id!==id);save();
+  if(S.tab==='map')renderMap();
+  else if(S.tab==='plans'){if(S.isDesk)renderPlan('d-plans-ct','d-plans-sub',true);else renderPlan('plans-ct','plans-sub',false);}
+  notif('Vieta dzēsta','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// ROUTE MODAL (flight arc — 100% offline)
+// ══════════════════════════════════════════════════════
+function showRouteModal(editId){
+  if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+  const r=editId?S.routes.find(x=>x.id===editId):null;
+  modal(r?'Rediģēt lidojumu':'Pievienot lidojumu ✈️',`
+    <p style="font-size:12px;color:var(--mu);margin-bottom:14px;background:var(--Pl);border-radius:10px;padding:8px 12px">
+      🌐 Lidojuma maršruts tiek aprēķināts <b>bezsaistē</b> pēc lielā loka formulas. Meklē pēc lidostas IATA koda vai nosaukuma.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div>
+        <label class="fl">Izlidošana *</label>
+        <input class="inp" id="r-from-q" value="${r?r.fromIata||'':''}" placeholder="RIX, Rīga..." autocomplete="off" oninput="apSearch('from',this.value)">
+        <div class="ap-res" id="ap-from"></div>
+        <div class="ctxt" id="r-from-lbl">${r?`${r.fromIata} — ${r.fromName}`:''}</div>
+        <input type="hidden" id="r-flat" value="${r?r.fromLat||'':''}">
+        <input type="hidden" id="r-flng" value="${r?r.fromLng||'':''}">
+        <input type="hidden" id="r-fiata" value="${r?r.fromIata||'':''}">
+        <input type="hidden" id="r-fname" value="${r?r.fromName||'':''}">
+      </div>
+      <div>
+        <label class="fl">Ielidošana *</label>
+        <input class="inp" id="r-to-q" value="${r?r.toIata||'':''}" placeholder="CDG, Parīze..." autocomplete="off" oninput="apSearch('to',this.value)">
+        <div class="ap-res" id="ap-to"></div>
+        <div class="ctxt" id="r-to-lbl">${r?`${r.toIata} — ${r.toName}`:''}</div>
+        <input type="hidden" id="r-tlat" value="${r?r.toLat||'':''}">
+        <input type="hidden" id="r-tlng" value="${r?r.toLng||'':''}">
+        <input type="hidden" id="r-tiata" value="${r?r.toIata||'':''}">
+        <input type="hidden" id="r-tname" value="${r?r.toName||'':''}">
+      </div>
+    </div>
+    <div id="r-dist-preview" style="text-align:center;padding:10px;background:var(--Pl);border-radius:12px;font-size:13px;font-weight:600;color:var(--P);margin-bottom:14px;display:${r&&r.fromLat&&r.toLat?'block':'none'}">
+      ${r&&r.fromLat&&r.toLat?`✈️ ${gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng).toLocaleString()} km · ${gcTime(gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng))} (lielais loks)`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div><label class="fl">Datums</label><input class="inp" type="date" id="r-date" value="${r?r.date||'':''}"></div>
+      <div><label class="fl">Reisa nr.</label><input class="inp" id="r-fn" value="${esc(r?r.flightNumber||'':'')}" placeholder="piem. BT401"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div><label class="fl">Izlidošanas laiks</label><input class="inp" type="time" id="r-dep" value="${r?r.departureTime||'':''}"></div>
+      <div><label class="fl">Ielidošanas laiks</label><input class="inp" type="time" id="r-arr" value="${r?r.arrivalTime||'':''}"></div>
+    </div>
+    <div class="fg"><label class="fl">Piezīmes</label><textarea class="inp" id="r-no">${esc(r?r.notes||'':'')}</textarea></div>
+    <div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn bp" onclick="saveRoute('${editId||''}')">${r?'Saglabāt':'Pievienot lidojumu'}</button></div>`);
+  setTimeout(()=>document.getElementById('r-from-q')?.focus(),80);
+}
+
+function apSearch(side,q){
+  const resEl=document.getElementById('ap-'+side);
+  const results=searchAirports(q);
+  if(!results.length||!q.trim()){resEl.classList.remove('show');resEl.innerHTML='';return;}
+  resEl.innerHTML=results.map(a=>
+    `<div class="ap-it" onclick="pickAp('${side}','${a[0]}','${esc(a[1])}',${a[4]},${a[5]})"><span class="ap-iata">${a[0]}</span>${esc(a[1])} <span style="color:var(--mu);font-size:11px">${a[2]}, ${a[3]}</span></div>`
+  ).join('');
+  resEl.classList.add('show');
+}
+
+function pickAp(side,iata,name,lat,lng){
+  const s=side==='from'?'f':'t';
+  document.getElementById(`r-${s}lat`).value=lat;
+  document.getElementById(`r-${s}lng`).value=lng;
+  document.getElementById(`r-${s}iata`).value=iata;
+  document.getElementById(`r-${s}name`).value=name;
+  document.getElementById(`r-${side}-q`).value=iata;
+  document.getElementById(`r-${side}-lbl`).textContent=`${iata} — ${name}`;
+  document.getElementById('ap-'+side).classList.remove('show');
+  // Update distance preview
+  const flat=parseFloat(document.getElementById('r-flat').value);
+  const flng=parseFloat(document.getElementById('r-flng').value);
+  const tlat=parseFloat(document.getElementById('r-tlat').value);
+  const tlng=parseFloat(document.getElementById('r-tlng').value);
+  const pv=document.getElementById('r-dist-preview');
+  if(flat&&flng&&tlat&&tlng){
+    const dist=gcDist(flat,flng,tlat,tlng);
+    pv.innerHTML=`✈️ ${dist.toLocaleString()} km · ${gcTime(dist)} (lielais loks)`;
+    pv.style.display='block';
+  }
+}
+
+function saveRoute(editId){
+  const flat=parseFloat(document.getElementById('r-flat').value);
+  const flng=parseFloat(document.getElementById('r-flng').value);
+  const tlat=parseFloat(document.getElementById('r-tlat').value);
+  const tlng=parseFloat(document.getElementById('r-tlng').value);
+  if(!flat||!tlat){notif('Izvēlies abas lidostas!','err');return;}
+  const data={tripId:S.tripId,fromLat:flat,fromLng:flng,fromIata:document.getElementById('r-fiata').value,fromName:document.getElementById('r-fname').value,toLat:tlat,toLng:tlng,toIata:document.getElementById('r-tiata').value,toName:document.getElementById('r-tname').value,date:document.getElementById('r-date').value,flightNumber:(document.getElementById('r-fn').value||'').trim(),departureTime:document.getElementById('r-dep').value,arrivalTime:document.getElementById('r-arr').value,notes:(document.getElementById('r-no').value||'').trim()};
+  if(editId){const r=S.routes.find(x=>x.id===editId);if(r)Object.assign(r,data);notif('Lidojums atjaunināts!','ok');}
+  else{S.routes.push({id:uid(),...data,cAt:Date.now()});notif('Lidojums pievienots! ✈️','ok');}
+  save();closeModal();
+  if(S.tab==='map')renderMap();
+  else if(S.tab==='plans'){if(S.isDesk)renderPlan('d-plans-ct','d-plans-sub',true);else renderPlan('plans-ct','plans-sub',false);}
+}
+async function delRoute(id){
+  const r=S.routes.find(x=>x.id===id);if(!r)return;
+  if(!await conf2(`Dzēst lidojumu ${r.fromIata||''}→${r.toIata||''}?`))return;
+  S.routes=S.routes.filter(x=>x.id!==id);save();renderMap();
+  if(S.tab==='plans'){if(S.isDesk)renderPlan('d-plans-ct','d-plans-sub',true);else renderPlan('plans-ct','plans-sub',false);}
+  notif('Lidojums dzēsts','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// DOC MODAL
+// ══════════════════════════════════════════════════════
+function showDocModal(editId){
+  if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
+  const d=editId?S.docs.find(x=>x.id===editId):null;selDocType=d?d.type||'lidojums':'lidojums';
+  modal(d?'Rediģēt dokumentu':'Pievienot dokumentu 🎫',`
+    <div class="fg"><label class="fl">Dokumenta tips</label>
+      <div class="dtg">${DT.map(t=>`<button type="button" class="dtb${selDocType===t.id?' on':''}" id="dt-${t.id}" onclick="pickDT('${t.id}')"><span class="dtico">${t.ico}</span>${t.lbl}</button>`).join('')}</div>
+    </div>
+    <div class="fg"><label class="fl">Nosaukums *</label><input class="inp" id="dm-n" value="${esc(d?d.title:'')}" placeholder="piem. Lidojums RIX → CDG"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg">
+      <div><label class="fl">Datums</label><input class="inp" type="date" id="dm-d" value="${d?d.date||'':''}"></div>
+      <div><label class="fl">Pakalpojumu sniedzējs</label><input class="inp" id="dm-pr" value="${esc(d?d.provider||'':'')}" placeholder="piem. Ryanair"></div>
+    </div>
+    <div class="fg"><label class="fl">Apstiprinājuma nr. / PNR</label><input class="inp" id="dm-cn" value="${esc(d?d.confirmationNumber||'':'')}" placeholder="piem. XY12345"></div>
+    <div class="fg"><label class="fl">Piezīmes</label><textarea class="inp" id="dm-no">${esc(d?d.notes||'':'')}</textarea></div>
+    <div class="fg"><label class="fl">Faila pielikums (PDF / attēls, maks. 3MB)</label>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px 13px;background:var(--bg);border:1.5px dashed var(--br);border-radius:12px;cursor:pointer">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span id="dm-fl" style="font-size:13px;color:var(--mu)">${d?.fileName?esc(d.fileName):'Pievienot failu...'}</span>
+        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" style="display:none" onchange="handleF(this)">
+      </label>
+    </div>
+    <input type="hidden" id="dm-fd" value=""><input type="hidden" id="dm-fn" value="">
+    <div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn ba" onclick="saveDoc('${editId||''}')">${d?'Saglabāt':'Pievienot dokumentu'}</button></div>`);
+  if(d?.fileData){document.getElementById('dm-fd').value=d.fileData;document.getElementById('dm-fn').value=d.fileName||'';}
+  setTimeout(()=>document.getElementById('dm-n')?.focus(),80);
+}
+function pickDT(id){selDocType=id;document.querySelectorAll('.dtb').forEach(b=>b.classList.remove('on'));document.getElementById('dt-'+id)?.classList.add('on');}
+function handleF(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>3*1024*1024){notif('Fails pārāk liels! Maks. 3MB.','err');inp.value='';return;}
+  const r=new FileReader();r.onload=e=>{document.getElementById('dm-fd').value=e.target.result;document.getElementById('dm-fn').value=f.name;document.getElementById('dm-fl').textContent=f.name;notif('Fails pievienots! 📎','ok');};r.readAsDataURL(f);
+}
+function saveDoc(editId){
+  const title=(document.getElementById('dm-n').value||'').trim();if(!title){notif('Norādi nosaukumu!','err');return;}
+  const ex=editId?S.docs.find(x=>x.id===editId):null;
+  const fd2=document.getElementById('dm-fd').value,fn=document.getElementById('dm-fn').value;
+  const data={tripId:S.tripId,type:selDocType,title,date:document.getElementById('dm-d').value,provider:(document.getElementById('dm-pr').value||'').trim(),confirmationNumber:(document.getElementById('dm-cn').value||'').trim(),notes:(document.getElementById('dm-no').value||'').trim(),fileData:fd2||(ex?ex.fileData:null),fileName:fn||(ex?ex.fileName:'')};
+  if(editId){const d=S.docs.find(x=>x.id===editId);if(d)Object.assign(d,data);notif('Atjaunināts!','ok');}
+  else{S.docs.push({id:uid(),...data,cAt:Date.now()});notif('Dokuments pievienots! 🎫','ok');}
+  save();closeModal();if(S.isDesk)renderDocs('d-docs-ct','d-doc-filt',true);else renderDocs('docs-ct','doc-filt',false);
+}
+async function delDoc(id){
+  const d=S.docs.find(x=>x.id===id);if(!d)return;
+  if(!await conf2(`Dzēst "${d.title}"?`))return;
+  S.docs=S.docs.filter(x=>x.id!==id);save();if(S.isDesk)renderDocs('d-docs-ct','d-doc-filt',true);else renderDocs('docs-ct','doc-filt',false);notif('Dzēsts','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL HELPERS
+// ══════════════════════════════════════════════════════
+function modal(title,body){
+  closeModal();const ov=document.createElement('div');ov.className='mover';
+  ov.innerHTML=`<div class="mbox"><div class="mhdl"></div><div class="mtit">${title}</div>${body}</div>`;
+  ov.onclick=e=>{if(e.target===ov)closeModal();};document.getElementById('mroot').appendChild(ov);
+}
+const closeModal=()=>{const r=document.getElementById('mroot');if(r.lastChild)r.lastChild.remove();};
+function conf2(msg,title='Apstiprinājums'){
+  return new Promise(res=>{
+    const ov=document.createElement('div');ov.className='mover';
+    ov.innerHTML=`<div class="mbox" style="max-width:360px;border-radius:24px"><div class="mhdl"></div><div class="mtit" style="font-size:17px">${title}</div><p style="font-size:13px;color:var(--mu);margin-bottom:20px">${msg}</p><div style="display:flex;gap:10px"><button class="btn bg2" style="flex:1" id="cc">Atcelt</button><button class="btn bd" style="flex:1" id="co">Dzēst</button></div></div>`;
+    document.getElementById('mroot').appendChild(ov);
+    ov.querySelector('#cc').onclick=()=>{ov.remove();res(false);};
+    ov.querySelector('#co').onclick=()=>{ov.remove();res(true);};
+    ov.onclick=e=>{if(e.target===ov){ov.remove();res(false);}};
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+function expJSON(){
+  const data={trips:S.trips,places:S.places,docs:S.docs,routes:S.routes};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download='celoejums-'+new Date().toISOString().split('T')[0]+'.json';a.click();notif('JSON eksportēts!','ok');
+}
+function impJSON(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!await conf2('Importēt? Esošie dati tiks pārrakstīti.','Importēt JSON?'))return;
+      if(data.trips)S.trips=data.trips;if(data.places)S.places=data.places;
+      if(data.docs)S.docs=data.docs;if(data.routes)S.routes=data.routes;
+      if(!S.tripId&&S.trips.length)S.tripId=S.trips[0].id;
+      save();renderAll();notif('Dati importēti! ✅','ok');
+    }catch(e){notif('Kļūda: '+e.message,'err');}
+  };r.readAsText(f);input.value='';
+}
+async function clearAll(){
+  if(!await conf2('Dzēst VISUS datus?','Dzēst?'))return;
+  S.trips=[];S.places=[];S.docs=[];S.routes=[];S.tripId=null;save();renderAll();notif('Dati dzēsti','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// PDF EXPORT — A4, jsPDF
+// ══════════════════════════════════════════════════════
+function exportPDF(){
+  const trip=curT();
+  if(!trip){notif('Nav izvēlēts ceļojums!','err');return;}
+  if(!window.jspdf){notif('jsPDF vēl ielādējas...','err');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,ML=16,MR=194,TW=MR-ML;
+  let y=0;
+  const P=S.places.filter(p=>p.tripId===trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+  const R=S.routes.filter(r=>r.tripId===trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+  const D=S.docs.filter(d=>d.tripId===trip.id);
+
+  // Colour helpers
+  const hexToRGB=h=>{const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return[r,g,b];};
+  const [PR,PG,PB]=hexToRGB('#1A5F58');
+  const [AR,AG,AB]=hexToRGB('#D4712E');
+
+  function addPage(){doc.addPage();y=0;}
+  function checkY(need=20){if(y+need>282)addPage();}
+
+  // ── COVER PAGE ──
+  // Green header bar
+  doc.setFillColor(PR,PG,PB);doc.rect(0,0,W,52,'F');
+  doc.setFillColor(AR,AG,AB);doc.rect(0,52,W,4,'F');
+  // Title
+  doc.setFont('helvetica','bold');doc.setFontSize(28);
+  doc.setTextColor(255,255,255);
+  const tripName=trip.name.length>30?trip.name.slice(0,30)+'…':trip.name;
+  doc.text(tripName,W/2,24,{align:'center'});
+  doc.setFontSize(14);doc.setFont('helvetica','normal');
+  doc.text(trip.destination||'',W/2,34,{align:'center'});
+  doc.setFontSize(11);doc.setTextColor(200,240,236);
+  const dateRange=fdr(trip.startDate,trip.endDate);
+  const days=dbw(trip.startDate,trip.endDate);
+  doc.text(`${dateRange}${days?' · '+days+' dienas':''}`,W/2,44,{align:'center'});
+
+  // Stats row
+  doc.setFillColor(248,251,250);doc.rect(0,56,W,28,'F');
+  doc.setDrawColor(220,230,228);doc.line(0,84,W,84);
+  const stats=[
+    {n:P.length,l:'Vietas'},
+    {n:R.length,l:'Lidojumi'},
+    {n:D.length,l:'Dokumenti'},
+    ...(days?[{n:days,l:'Dienas'}]:[])
+  ];
+  const sw=W/stats.length;
+  stats.forEach((s,i)=>{
+    const cx=sw*i+sw/2;
+    doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(PR,PG,PB);
+    doc.text(String(s.n),cx,72,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(120,130,128);
+    doc.text(s.l,cx,79,{align:'center'});
+  });
+  y=92;
+
+  // Description
+  if(trip.description){
+    doc.setFont('helvetica','italic');doc.setFontSize(10);doc.setTextColor(100,110,108);
+    const lines=doc.splitTextToSize(trip.description,TW);
+    doc.text(lines,ML,y);y+=lines.length*5+4;
+  }
+
+  // ── SECTION HEADER HELPER ──
+  function sectionHeader(title,ico){
+    checkY(16);y+=4;
+    doc.setFillColor(PR,PG,PB);doc.roundedRect(ML,y,TW,9,2,2,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
+    doc.text(`${ico}  ${title}`,ML+4,y+6.2);
+    y+=13;
+  }
+
+  // ── ITINERARY ──
+  sectionHeader('ITINERĀRS','📅');
+  // Merge places + routes by date
+  const allItems=[...P.map(p=>({...p,_type:'place'})),...R.map(r=>({...r,_type:'route'}))];
+  allItems.sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+  const byD={},noD=[];
+  allItems.forEach(it=>{if(it.date){if(!byD[it.date])byD[it.date]=[];byD[it.date].push(it);}else noD.push(it);});
+  let dayNum=1;
+  Object.keys(byD).sort().forEach(date=>{
+    checkY(14);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(PR,PG,PB);
+    doc.text(`Diena ${dayNum++} — ${lvmd(date)}`,ML,y);y+=6;
+    doc.setDrawColor(PR,PG,PB);doc.setLineWidth(.3);doc.line(ML,y,MR,y);y+=3;
+
+    byD[date].forEach(it=>{
+      checkY(12);
+      if(it._type==='route'){
+        const dist=gcDist(it.fromLat,it.fromLng,it.toLat,it.toLng);
+        doc.setFillColor(AR,AG,AB);doc.circle(ML+3,y+2.5,2,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(AR,AG,AB);
+        doc.text(`✈ ${it.fromIata||'?'} → ${it.toIata||'?'}`,ML+7,y+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(80,90,88);
+        let meta=`${esc(it.fromName)} → ${esc(it.toName)}`;
+        if(it.flightNumber)meta+=` · ${it.flightNumber}`;
+        if(it.departureTime)meta+=` · ${it.departureTime}`;
+        meta+=` · ${dist.toLocaleString()} km`;
+        const mlines=doc.splitTextToSize(meta,TW-8);
+        doc.text(mlines,ML+7,y+8.5);y+=6+mlines.length*4.5;
+      } else {
+        const pt=getPT(it.type);
+        doc.setFillColor(PR,PG,PB);doc.circle(ML+3,y+2.5,2,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(30,40,38);
+        doc.text(it.name,ML+7,y+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,110,108);
+        let sub=`${pt.lbl}`;
+        if(it.time)sub+=` · ${it.time}`;
+        if(it.address)sub+=` · ${it.address.slice(0,60)}`;
+        if(it.visited)sub+=' · ✓ Apmeklēts';
+        const slines=doc.splitTextToSize(sub,TW-8);
+        doc.text(slines,ML+7,y+8.5);y+=6+slines.length*4.5;
+        if(it.notes){
+          doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.setTextColor(130,140,138);
+          const nlines=doc.splitTextToSize(`"${it.notes}"`,TW-10);
+          doc.text(nlines,ML+9,y);y+=nlines.length*4+1;
+        }
+      }
+      y+=1;
+    });
+    y+=3;
+  });
+
+  if(noD.length){
+    checkY(12);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(PR,PG,PB);
+    doc.text('Bez datuma',ML,y);y+=5;
+    noD.forEach(it=>{
+      checkY(10);
+      const pt=getPT(it.type);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(60,70,68);
+      const lines=doc.splitTextToSize(`• ${it.name} (${pt.lbl})`,TW);
+      doc.text(lines,ML+3,y);y+=lines.length*4.5+1;
+    });
+  }
+
+  // ── FLIGHTS ──
+  if(R.length){
+    sectionHeader('LIDOJUMU MARŠRUTI','✈️');
+    R.forEach(r=>{
+      checkY(16);
+      const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
+      doc.setFillColor(AR,AG,AB);doc.setDrawColor(AR,AG,AB);
+      doc.roundedRect(ML,y,TW,14,2,2,'FD');
+      doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(255,255,255);
+      doc.text(`${r.fromIata||'?'}  ✈  ${r.toIata||'?'}`,ML+4,y+8);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);
+      let meta=`${r.fromName} → ${r.toName}`;
+      if(r.flightNumber)meta+=` · ${r.flightNumber}`;
+      if(r.date)meta+=` · ${fd(r.date)}`;
+      if(r.departureTime)meta+=` · Izlidošana: ${r.departureTime}`;
+      if(r.arrivalTime)meta+=` · Ielidošana: ${r.arrivalTime}`;
+      doc.text(meta,ML+4,y+12.5,{maxWidth:TW-8});
+      doc.setTextColor(255,220,200);doc.setFontSize(8);
+      doc.text(`${dist.toLocaleString()} km · ${gcTime(dist)} (lielais loks)`,MR-2,y+8,{align:'right'});
+      y+=18;
+    });
+  }
+
+  // ── DOCUMENTS ──
+  if(D.length){
+    sectionHeader('DOKUMENTI','📄');
+    D.forEach(d=>{
+      checkY(12);
+      const dt=getDT(d.type);
+      doc.setFillColor(246,249,248);doc.setDrawColor(220,228,226);doc.setLineWidth(.3);
+      doc.roundedRect(ML,y,TW,10,2,2,'FD');
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,60,58);
+      doc.text(`${dt.lbl}: ${d.title}`,ML+3,y+6,{maxWidth:TW-30});
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,130,128);
+      let meta='';
+      if(d.date)meta+=fd(d.date)+' ';
+      if(d.provider)meta+=d.provider+' ';
+      if(d.confirmationNumber)meta+='· '+d.confirmationNumber;
+      if(meta)doc.text(meta.trim(),MR-2,y+6,{align:'right',maxWidth:60});
+      y+=13;
+    });
+  }
+
+  // ── FOOTER ──
+  const pageCount=doc.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(160,170,168);
+    doc.text(`Ceļojuma Plānotājs v1.5 · ${trip.name}`,ML,290);
+    doc.text(`${i} / ${pageCount}`,MR,290,{align:'right'});
+    doc.setDrawColor(220,228,226);doc.setLineWidth(.3);doc.line(ML,286,MR,286);
+  }
+
+  const filename=`${trip.name.replace(/[^a-zA-ZāčēģīķļņšūžĀČĒĢĪĶĻŅŠŪŽ0-9\s]/g,'').trim().replace(/\s+/g,'_')}_${trip.startDate||'celoejums'}.pdf`;
+  doc.save(filename);
+  notif('PDF eksportēts! 📄','ok');
+}
+
+// ══════════════════════════════════════════════════════
+// NOTIF & ONLINE
+// ══════════════════════════════════════════════════════
+function notif(msg,type='inf'){const c=document.getElementById('nwrap');const n=document.createElement('div');n.className='nf '+type;n.textContent=msg;c.appendChild(n);setTimeout(()=>{if(n.parentNode)n.remove();},3200);}
+function updateOnline(){const d=document.getElementById('odot');if(d){d.className=navigator.onLine?'dot-on':'dot-off';d.title=navigator.onLine?'Tiešsaistē':'Bezsaistē';}}
+window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  load();
+  applyTheme(S.theme);
+  applyFont(S.font);
+  updateOnline();
+  applyLayout();
+  setupSearch();
+  initPWABanner();
+
+  // Init map system
+  if(S.mapSystem==='osm'){
+    document.getElementById('lmap').style.display='block';
+    document.getElementById('gmap').style.display='none';
+    initLeaflet();
+  } else {
+    document.getElementById('lmap').style.display='none';
+    document.getElementById('gmap').style.display='block';
+    if(S.apiKey)loadGoogleScript(S.apiKey);
+    else document.getElementById('gmap-nokey').style.display='flex';
+  }
+
+  renderAll();
+  setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP){LMAP.invalidateSize();renderMap();}},200);
+  if(S.autoSync&&S.syncUrl&&navigator.onLine)setTimeout(syncDown,800);
+});
+</script>
+</body>
+</html>
