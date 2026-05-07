@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Ceļojuma Plānotājs v1.7</title>
+<title>Ceļojuma Plānotājs v3.3</title>
 <meta name="application-name" content="Ceļojuma Plānotājs">
 <meta name="description" content="Personīgais ceļojumu plānotājs ar kartēm, itinerāru un dokumentiem">
 <meta name="theme-color" id="meta-theme-color" content="#1A5F58">
@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ceļojums">
 <link rel="manifest" id="cp-manifest">
+<link rel="icon" id="cp-favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231A5F58'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='white'%3E✈%3C/text%3E%3C/svg%3E">
 <link rel="apple-touch-icon" id="cp-apple-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%231A5F58'/%3E%3Ctext y='130' x='96' text-anchor='middle' font-size='110'%3E✈️%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,9 +58,9 @@
   if(mel)mel.href=URL.createObjectURL(mb);
   // Service Worker
   if('serviceWorker' in navigator){
-    var swCode='const CACHE="cp-v1.7";'+
+    var swCode='const CACHE="cp-v3.3";'+
     'const EXT=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"];'+
-    'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(EXT.map(u=>fetch(new Request(u,{mode:"no-cors"})).then(r=>c.put(u,r)).catch(()=>{})))).catch(()=>{}));});'+
+    'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(EXT.map(u=>fetch(new Request(u,{mode:"no-cors"})).then(r=>c.put(u,r)).catch(()=>{}))).catch(()=>{}));});'+
     'self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim()));});'+
     'self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(cached=>{if(cached)return cached;return fetch(e.request).then(resp=>{if(resp&&(resp.status===200||resp.type==="opaque")){const cl=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cl)).catch(()=>{});}return resp;}).catch(()=>caches.match(e.request));}).catch(()=>fetch(e.request)));});'+
     'self.addEventListener("message",e=>{if(e.data&&e.data.type==="CACHE_PAGE"){caches.open(CACHE).then(c=>c.add(new Request(e.data.url,{cache:"reload"})).catch(()=>{})).catch(()=>{});}});';
@@ -99,18 +100,20 @@ h1,h2,h3,.serif{font-family:var(--ffs);}
   --tx:#1C1C2E;--mu:#7A7A8C;
   --ff:'DM Sans',system-ui,sans-serif;
   --ffs:'Lora',Georgia,serif;
-  --H:60px;--TB:48px;--NAV:68px;--SW:212px;--SWC:52px;
+  --H:60px;--TB:48px;--NAV:78px;--SW:212px;--SWC:52px;
 }
 /* ── THEMES ── */
-[data-theme=ocean]{--P:#1E40AF;--Pd:#1E3A8A;--Pl:#EFF6FF;--A:#F59E0B;--bg:#EEF4FF;}
-[data-theme=forest]{--P:#166534;--Pd:#14532D;--Pl:#F0FDF4;--A:#D97706;--bg:#EDFAF0;}
-[data-theme=sunset]{--P:#C2410C;--Pd:#9A3412;--Pl:#FFF7ED;--A:#7C3AED;--bg:#FDF6EF;}
-[data-theme=violet]{--P:#7C3AED;--Pd:#6D28D9;--Pl:#F5F3FF;--A:#D4712E;--bg:#F5F0FF;}
 [data-theme=dark]{
   --P:#2A9D8F;--Pd:#1F7A74;--Pl:#1E3A3A;
   --A:#F4A261;--Al:#3D2A15;
   --bg:#0F172A;--sur:#1E293B;--br:#334155;--brl:#263148;
   --tx:#F1F5F9;--mu:#94A3B8;
+}
+[data-theme=white]{
+  --P:#1A5F58;--Pd:#134A44;--Pl:#E6F5F4;
+  --A:#D4712E;
+  --bg:#FFFFFF;--sur:#F8FAFB;--br:#E2E8F0;--brl:#EEF2F7;
+  --tx:#0F172A;--mu:#64748B;
 }
 /* ── FONTS ── */
 [data-font=system]{--ff:system-ui,-apple-system,'Segoe UI',sans-serif;--ffs:system-ui,-apple-system,'Segoe UI',sans-serif;}
@@ -144,10 +147,24 @@ h1,h2,h3,.serif{font-family:var(--ffs);}
 .pane{position:absolute;inset:0;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .pane.on{display:block;}
 #p-map{overflow:hidden;}
-#bnav{flex:0 0 var(--NAV);height:var(--NAV);background:var(--P);display:flex;padding:0 4px;padding-bottom:env(safe-area-inset-bottom,0);box-shadow:0 -2px 14px rgba(0,0,0,.14);}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;cursor:pointer;color:rgba(255,255,255,.5);font-size:10px;font-weight:500;border-radius:12px;padding:6px 2px;transition:color .2s;}
-.nb.on{color:#fff;background:rgba(255,255,255,.12);}
-.nb:hover:not(.on){color:rgba(255,255,255,.8);}
+#bnav{
+  flex:0 0 var(--NAV);height:var(--NAV);
+  background:var(--sur);border-top:1px solid var(--br);
+  display:flex;align-items:center;padding:6px 8px;gap:4px;
+  padding-bottom:calc(6px + env(safe-area-inset-bottom,0));
+  box-shadow:0 -2px 20px rgba(0,0,0,.08);
+}
+.nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;border:none;background:transparent;cursor:pointer;
+  color:var(--mu);font-size:10px;font-weight:600;
+  border-radius:16px;padding:8px 4px;transition:all .2s;
+  min-height:52px;
+}
+.nb.on{color:var(--P);background:var(--Pl);}
+.nb svg{transition:transform .2s;}
+.nb.on svg{transform:scale(1.1);}
+.nb:hover:not(.on){color:var(--tx);background:var(--bg);}
 
 /* ── DESKTOP ── */
 #desk{display:none;width:100%;height:100%;}
@@ -201,8 +218,8 @@ h1,h2,h3,.serif{font-family:var(--ffs);}
 .ac-sub{font-size:11px;color:var(--mu);}
 
 /* Map controls */
-#map-ctrls{position:absolute;top:12px;right:12px;z-index:800;display:flex;flex-direction:column;gap:6px;}
-.map-ctrl-btn{width:38px;height:38px;border-radius:12px;background:var(--sur);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,.15);transition:background .15s;color:var(--tx);}
+#map-ctrls{position:absolute;top:68px;right:12px;z-index:800;display:flex;flex-direction:column;gap:6px;}
+.map-ctrl-btn{width:40px;height:40px;border-radius:12px;background:var(--sur);border:1px solid var(--br);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 10px rgba(0,0,0,.12);transition:background .15s;color:var(--tx);}
 .map-ctrl-btn:hover{background:var(--Pl);color:var(--P);}
 
 /* Legend */
@@ -242,7 +259,7 @@ h1,h2,h3,.serif{font-family:var(--ffs);}
 .ss{font-size:13px;color:var(--mu);margin:0 0 18px;}
 .card{background:var(--sur);border-radius:18px;padding:14px 16px;box-shadow:0 1px 8px rgba(0,0,0,.06);border:1px solid var(--br);margin-bottom:10px;}
 .crow{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
-.ctit{font-size:15px;font-weight:600;margin:0 0 2px;color:var(--tx);}
+.ctit{font-size:15px;font-weight:600;margin:0 0 2px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;word-break:break-word;}
 .csub{font-size:12px;color:var(--mu);margin:0;line-height:1.5;}
 .cacts{display:flex;gap:4px;flex-shrink:0;}
 .ibt{width:30px;height:30px;border-radius:8px;background:var(--bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--mu);transition:background .15s,color .15s;}
@@ -295,7 +312,7 @@ h1,h2,h3,.serif{font-family:var(--ffs);}
 .tldot.r{background:var(--A);}
 .tlline{width:2px;flex:1;background:var(--br);min-height:12px;}
 .tlc{flex:1;}
-.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
 .plan-grid .tlday{background:var(--sur);border-radius:16px;padding:14px;border:1px solid var(--br);margin-bottom:0;}
 .docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;}
 .docs-grid .card{margin-bottom:0;}
@@ -738,20 +755,12 @@ body { font-size: calc(15px * var(--fs-scale)); }
 .bp-field-value { font-size:13px;font-weight:600;color:var(--tx);line-height:1.2; }
 .bp-field-value.mono { font-family:monospace;font-size:14px; }
 /* Barcode strip */
-.bp-barcode {
+.bp-pnr-strip {
   background:var(--bg);border-top:1px solid var(--br);
   padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;
 }
-[data-theme=dark] .bp-barcode { background:#263148; }
-.bp-barcode-bars {
-  display:flex;gap:2px;align-items:flex-end;flex:1;height:32px;
-}
-.bp-barcode-bars span {
-  flex:1;background:var(--tx);border-radius:1px;
-  min-width:1px;
-}
-.bp-conf { font-size:10px;color:var(--mu);text-align:right; }
-.bp-conf-num { font-family:monospace;font-size:13px;font-weight:700;color:var(--P); }
+.bp-conf { font-size:10px;color:var(--mu); }
+.bp-conf-num { font-family:monospace;font-size:14px;font-weight:700;color:var(--P); }
 /* Actions row */
 .bp-actions {
   padding:0 18px 14px;display:flex;gap:6px;
@@ -770,7 +779,7 @@ body { font-size: calc(15px * var(--fs-scale)); }
 <header id="hdr">
   <div class="logo">
     <div class="logo-ico">✈️</div>
-    <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v1.6</div></div>
+    <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v3.3</div></div>
   </div>
   <div class="hdr-r">
     <span id="odot" class="dot-on" title="Tiešsaistē"></span>
@@ -815,14 +824,23 @@ body { font-size: calc(15px * var(--fs-scale)); }
   <div id="map-ctrls">
     <button class="map-ctrl-btn" onclick="fitAll()" title="Atiestatīt skatu uz visām vietām">🎯</button>
     <button class="map-ctrl-btn" id="loc-btn" onclick="goToMyLocation()" title="Mana atrašanās vieta">📡</button>
+    <button class="map-ctrl-btn" onclick="toggleMapFilter()" title="Filtrēt dienas" id="filter-btn">📅</button>
   </div>
 
   <!-- Legend -->
   <div id="mleg" style="display:none;">
     <div class="ml-t">Leģenda</div>
-    <div class="ml-r"><span style="color:#1A5F58;font-size:18px">●</span> Vieta</div>
+    <div class="ml-r"><span id="ml-vieta" style="font-size:18px">●</span> Vieta</div>
     <div class="ml-r"><span style="color:#4ADE80;font-size:18px">●</span> Apmeklēta</div>
     <div class="ml-r"><span style="color:var(--A);font-size:14px">——</span> Lidojums</div>
+  </div>
+
+  <!-- Map date filter -->
+  <div id="map-date-filter" style="position:absolute;bottom:80px;right:12px;z-index:800;max-width:180px;display:none;">
+    <div style="background:var(--sur);border-radius:14px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px">Filtrēt dienas</div>
+      <div id="map-date-chips"></div>
+    </div>
   </div>
 
   <!-- Click popup -->
@@ -855,6 +873,7 @@ body { font-size: calc(15px * var(--fs-scale)); }
         <div id="plans-now-wrap"></div>
         <div id="plans-ct"></div>
       </div>
+      <button class="fab fab-m" style="bottom:calc(var(--NAV) + 72px);background:var(--P)" onclick="showRouteModal()" title="Pievienot lidojumu">✈️</button>
       <button class="fab fab-m" onclick="showPlaceModal()">+</button>
     </div>
     <div class="pane" id="p-docs">
@@ -864,9 +883,7 @@ body { font-size: calc(15px * var(--fs-scale)); }
     <div class="pane" id="p-trips">
       <div class="spad"><h2 class="sh">Mani Ceļojumi</h2><p class="ss">Visi plānotie un pagātnes ceļojumi</p><div id="trips-ct"></div><button class="btn bp bfull" onclick="showTripModal()" style="margin-top:4px">+ Jauns Ceļojums</button></div>
     </div>
-    <div class="pane" id="p-tl">
-      <div class="spad" id="tl-ct"></div>
-    </div>
+
     <div class="pane" id="p-set"><div class="spad" id="set-ct"></div></div>
   </div>
   <nav id="bnav">
@@ -874,10 +891,6 @@ body { font-size: calc(15px * var(--fs-scale)); }
     <button class="nb" id="nb-plans" onclick="switchTab('plans')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14" stroke-width="3" stroke-linecap="round"/></svg>Plāns</button>
     <button class="nb" id="nb-docs" onclick="switchTab('docs')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Dokumenti</button>
     <button class="nb" id="nb-trips" onclick="switchTab('trips')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>Ceļojumi</button>
-    <button class="nb" id="nb-tl" onclick="switchTab('tl')">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="12" x2="3.01" y2="12" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="18" x2="3.01" y2="18" stroke-width="3" stroke-linecap="round"/></svg>
-      Skala
-    </button>
     <button class="nb" id="nb-set" onclick="switchTab('set')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Iestatījumi</button>
   </nav>
 </div>
@@ -892,10 +905,10 @@ body { font-size: calc(15px * var(--fs-scale)); }
       <button class="sn" id="sn-plans" onclick="switchTab('plans')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14" stroke-width="3" stroke-linecap="round"/></svg><span class="snlbl">Ceļojuma plāns</span></button>
       <button class="sn" id="sn-docs" onclick="switchTab('docs')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="snlbl">Dokumenti</span></button>
       <button class="sn" id="sn-trips" onclick="switchTab('trips')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg><span class="snlbl">Ceļojumi</span></button>
-      <button class="sn" id="sn-tl" onclick="switchTab('tl')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="12" x2="3.01" y2="12" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="18" x2="3.01" y2="18" stroke-width="3" stroke-linecap="round"/></svg><span class="snlbl">Laika skala</span></button>
+
       <button class="sn" id="sn-set" onclick="switchTab('set')"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="snlbl">Iestatījumi</span></button>
     </nav>
-    <div class="sb-foot" id="sb-foot">Ceļojuma Plānotājs v1.6</div>
+    <div class="sb-foot" id="sb-foot">Ceļojuma Plānotājs v3.3</div>
   </aside>
   <div id="dm">
     <div class="dp on" id="dp-map"></div>
@@ -907,10 +920,12 @@ body { font-size: calc(15px * var(--fs-scale)); }
       <p class="ss" id="d-plans-sub"></p>
       <div id="d-plans-now-wrap"></div>
       <div id="d-plans-ct"></div>
-    </div><button class="fab fab-d" onclick="showPlaceModal()">+</button></div>
+    </div>
+      <button class="fab fab-d" style="bottom:84px;background:var(--P)" onclick="showRouteModal()" title="Pievienot lidojumu">✈️</button>
+      <button class="fab fab-d" onclick="showPlaceModal()">+</button></div>
     <div class="dp" id="dp-docs"><div class="dpad"><h2 class="sh">Dokumenti</h2><p class="ss">Biļetes, rezervācijas, vaučeri un citi</p><div class="frow" id="d-doc-filt"></div><div id="d-docs-ct"></div></div><button class="fab fab-d" onclick="showDocModal()">+</button></div>
     <div class="dp" id="dp-trips"><div class="dpad"><h2 class="sh">Mani Ceļojumi</h2><p class="ss">Visi plānotie un pagātnes ceļojumi</p><div id="d-trips-ct" class="trips-grid"></div><button class="btn bp" onclick="showTripModal()" style="margin-top:16px">+ Jauns Ceļojums</button></div></div>
-    <div class="dp" id="dp-tl"><div class="dpad" id="d-tl-ct"></div></div>
+
     <div class="dp" id="dp-set"><div class="dpad" style="max-width:720px" id="d-set-ct"></div></div>
   </div>
 </div>
@@ -1052,13 +1067,16 @@ const AIRPORTS = [
 
 // Themes config
 const THEMES = [
-  {id:'teal',  label:'Tirkīzs',   color:'#1A5F58'},
-  {id:'ocean', label:'Okeāns',    color:'#1E40AF'},
-  {id:'forest',label:'Mežs',      color:'#166534'},
-  {id:'sunset',label:'Saulriets', color:'#C2410C'},
-  {id:'violet',label:'Violets',   color:'#7C3AED'},
-  {id:'dark',  label:'Tumšais',   color:'#0F172A'}
+  {id:'white', label:'Baltais',  color:'#FFFFFF'},
+  {id:'teal',  label:'Zaļais',  color:'#1A5F58'},
+  {id:'dark',  label:'Tumšais', color:'#0F172A'}
 ];
+// Colors for each day on the map
+const DAY_COLORS = [
+  '#1A5F58','#2563EB','#7C3AED','#C2410C','#0891B2',
+  '#065F46','#BE123C','#854D0E','#1D4ED8','#6D28D9'
+];
+function dayColor(idx){return DAY_COLORS[idx % DAY_COLORS.length];}
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -1071,13 +1089,13 @@ let S = {
   docFilter:'all',
   theme:'teal', font:'app', fontSize:1,
   mapSystem:'osm', apiKey:'',
-  syncingUp:false
+  syncingUp:false,
+  mapDateFilter:'all'
 };
 
 // Map instances
-let LMAP=null, GMAP=null;
+let LMAP=null;
 let L_MARKERS=[], L_ROUTE_LAYERS=[], L_ARC_LAYERS=[];
-let G_MARKERS=[], G_ROUTE_LAYERS=[], G_ARC_LAYERS=[];
 let pendingClick=null, searchPin=null;
 let acTimer=null, lastAcQ='';
 let selDocType='lidojums', selTripColor=1;
@@ -1135,7 +1153,6 @@ function gcArc(lat1,lng1,lat2,lng2,n=60){
     const z=A*Math.sin(f1)+B*Math.sin(f2);
     pts.push([Math.atan2(z,Math.sqrt(x*x+y*y))*R2D,Math.atan2(y,x)*R2D]);
   }
-  // fix antimeridian
   for(let i=1;i<pts.length;i++){
     while(pts[i][1]-pts[i-1][1]>180)pts[i][1]-=360;
     while(pts[i][1]-pts[i-1][1]<-180)pts[i][1]+=360;
@@ -1188,13 +1205,13 @@ function load(){
     S.tripId =localStorage.getItem('cp5_tripId')||null;
     S.syncUrl  =localStorage.getItem('cp5_syncUrl')||'';
     S.autoSync =localStorage.getItem('cp5_autoSync')==='true';
-    S.isDesk   =localStorage.getItem('cp5_desk')==='true';
     S.sbCol    =localStorage.getItem('cp5_sbcol')==='true';
     S.theme    =localStorage.getItem('cp5_theme')||'teal';
+    if(!['white','teal','dark'].includes(S.theme))S.theme='teal';
     S.font     =localStorage.getItem('cp5_font')||'app';
     S.fontSize =parseFloat(localStorage.getItem('cp5_fontSize')||'1');
     S.mapSystem=localStorage.getItem('cp5_mapsys')||'osm';
-    S.apiKey   =localStorage.getItem('cp5_apiKey')||'';
+    S.mapDateFilter=localStorage.getItem('cp5_mapdf')||'all';
     if(S.tripId&&!S.trips.find(t=>t.id===S.tripId))S.tripId=null;
     if(!S.tripId&&S.trips.length)S.tripId=S.trips[0].id;
   }catch(e){}
@@ -1233,24 +1250,15 @@ function resetFontSize(){
 }
 
 // ══════════════════════════════════════════════════════
-// MAP SYSTEM
+// MAP SYSTEM (only OSM, Google removed)
 // ══════════════════════════════════════════════════════
 function switchMapSystem(sys){
-  const changed=sys!==S.mapSystem;
-  S.mapSystem=sys;localStorage.setItem('cp5_mapsys',sys);
-  if(sys==='osm'){
-    document.getElementById('lmap').style.display='block';
-    document.getElementById('gmap').style.display='none';
-    if(GMAP){GMAP=null;G_MARKERS=[];G_ROUTE_LAYERS=[];G_ARC_LAYERS=[];}
-    if(!LMAP)initLeaflet();
-    else{LMAP.invalidateSize();renderMap();}
-  } else {
-    document.getElementById('lmap').style.display='none';
-    document.getElementById('gmap').style.display='block';
-    if(LMAP&&changed){LMAP.remove();LMAP=null;L_MARKERS=[];L_ROUTE_LAYERS=[];L_ARC_LAYERS=[];}
-    if(S.apiKey)loadGoogleScript(S.apiKey);
-    else{document.getElementById('gmap-nokey').style.display='flex';}
-  }
+  // Force osm only
+  S.mapSystem='osm';localStorage.setItem('cp5_mapsys','osm');
+  document.getElementById('lmap').style.display='block';
+  document.getElementById('gmap').style.display='none';
+  if(!LMAP)initLeaflet();
+  else{LMAP.invalidateSize();renderMap();}
 }
 
 // ── LEAFLET ──
@@ -1270,6 +1278,38 @@ function initLeaflet(){
     });
   });
   LMAP.on('click',hideAc);
+  renderMap();
+}
+
+// ── MAP DATE FILTER ──
+function buildMapDateChips(){
+  const allPl=curPl().filter(p=>p.lat&&p.lng);
+  const allRts=curRts().filter(r=>r.fromLat&&r.toLat);
+  const dates=[...new Set([...allPl.map(p=>p.date),...allRts.map(r=>r.date)].filter(Boolean))].sort();
+  const panel=document.getElementById('map-date-filter');
+  const chips=document.getElementById('map-date-chips');
+  if(!panel||!chips)return;
+  if(!dates.length){panel.style.display='none';return;}
+  let h='<button onclick="setMapFilter(\'all\')" style="display:block;width:100%;text-align:left;padding:5px 8px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;margin-bottom:4px;background:'+(S.mapDateFilter==='all'?'var(--Pl)':'transparent')+';color:'+(S.mapDateFilter==='all'?'var(--P)':'var(--mu)')+'">Visas dienas</button>';
+  dates.forEach((d,idx)=>{
+    const col=dayColor(idx);
+    const isOn=S.mapDateFilter===d;
+    h+='<button onclick="setMapFilter(\''+d+'\')" style="display:flex;align-items:center;gap:6px;width:100%;text-align:left;padding:5px 8px;border-radius:8px;border:none;cursor:pointer;font-size:11px;font-weight:600;margin-bottom:3px;background:'+(isOn?'var(--Pl)':'transparent')+';color:'+(isOn?'var(--P)':'var(--mu)')+'">'+
+      '<span style="width:10px;height:10px;border-radius:50%;background:'+col+';flex-shrink:0;display:inline-block"></span>'+
+      lvmd(d)+'</button>';
+  });
+  chips.innerHTML=h;
+}
+function toggleMapFilter(){
+  const panel=document.getElementById('map-date-filter');
+  if(!panel)return;
+  buildMapDateChips();
+  panel.style.display=(panel.style.display==='none'||!panel.style.display)?'block':'none';
+}
+function setMapFilter(val){
+  S.mapDateFilter=val;
+  localStorage.setItem('cp5_mapdf',val);
+  document.getElementById('map-date-filter').style.display='none';
   renderMap();
 }
 
@@ -1343,98 +1383,17 @@ function renderLeafletMap(){
   else if(bounds.length>1)LMAP.fitBounds(bounds,{padding:[50,50]});
 }
 
-// ── GOOGLE MAPS ──
-function loadGoogleScript(key){
-  const existing=document.getElementById('gm-script');
-  if(existing)existing.remove();
-  document.getElementById('gmap-nokey').style.display='none';
-  const sc=document.createElement('script');
-  sc.id='gm-script';
-  sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=gmReady&loading=async`;
-  sc.onerror=()=>{notif('Nederīga Google Maps API atslēga!','err');document.getElementById('gmap-nokey').style.display='flex';};
-  document.head.appendChild(sc);
-}
-
-window.gmReady=function(){
-  document.getElementById('gmap-nokey').style.display='none';
-  GMAP=new google.maps.Map(document.getElementById('gmap'),{
-    center:{lat:56.946,lng:24.106},zoom:7,
-    mapTypeControl:false,fullscreenControl:false,streetViewControl:false,
-    styles:[{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]}]
-  });
-  GMAP.addListener('click',e=>{
-    if(!S.tripId){notif('Vispirms izvēlies ceļojumu!','err');return;}
-    const lat=e.latLng.lat(),lng=e.latLng.lng();
-    revGeoGoogle(lat,lng,addr=>{pendingClick={lat,lng,address:addr,name:''};showClickPop(addr);});
-  });
-  renderGoogleMap();
-  notif('Google Maps ielādēts! 🗺️','ok');
-};
-
-function renderGoogleMap(){
-  if(!GMAP)return;
-  G_MARKERS.forEach(m=>m.setMap(null));G_MARKERS=[];
-  G_ROUTE_LAYERS.forEach(l=>l.setMap(null));G_ROUTE_LAYERS=[];
-  G_ARC_LAYERS.forEach(l=>l.setMap(null));G_ARC_LAYERS=[];
-  const iw=new google.maps.InfoWindow();
-  const places=curPl().filter(p=>p.lat&&p.lng);
-  const routes=curRts().filter(r=>r.fromLat&&r.toLat);
-  const bounds=new google.maps.LatLngBounds();
-
-  places.forEach((p,i)=>{
-    const col=p.visited?'#4ADE80':'#1A5F58';
-    const pt=getPT(p.type);
-    const marker=new google.maps.Marker({
-      position:{lat:p.lat,lng:p.lng},map:GMAP,title:p.name,
-      label:{text:String(i+1),color:'#fff',fontWeight:'700',fontSize:'12px'},
-      icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
-    });
-    marker.addListener('click',()=>{
-      iw.setContent(`<div style="font-family:sans-serif;padding:12px;min-width:170px"><b style="font-size:14px">${pt.ico} ${esc(p.name)}</b>${p.address?`<div style="font-size:12px;color:#666;margin-top:4px">📍 ${esc(p.address)}</div>`:''}<div style="display:flex;gap:6px;margin-top:10px"><button onclick="showPlaceModal('${p.id}')" style="background:#1A5F58;color:#fff;border:none;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer">✏️</button><button onclick="toggleV('${p.id}')" style="background:${p.visited?'#F3F4F6':'#DCFCE7'};color:${p.visited?'#6B7280':'#166534'};border:none;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer">${p.visited?'Neatmeklēts':'✓ Apmeklēts'}</button></div></div>`);
-      iw.open(GMAP,marker);
-    });
-    G_MARKERS.push(marker);
-    bounds.extend({lat:p.lat,lng:p.lng});
-  });
-
-  if(places.length>=2){
-    const poly=new google.maps.Polyline({path:places.map(p=>({lat:p.lat,lng:p.lng})),geodesic:false,strokeColor:'#1A5F58',strokeOpacity:.4,strokeWeight:2.5,map:GMAP});
-    G_ROUTE_LAYERS.push(poly);
-  }
-
-  routes.forEach(r=>{
-    const pts=gcArc(r.fromLat,r.fromLng,r.toLat,r.toLng,80).map(([lat,lng])=>({lat,lng}));
-    const arc=new google.maps.Polyline({path:pts,geodesic:false,strokeColor:'#D4712E',strokeOpacity:.7,strokeWeight:2,map:GMAP});
-    G_ARC_LAYERS.push(arc);
-    bounds.extend({lat:r.fromLat,lng:r.fromLng});
-    bounds.extend({lat:r.toLat,lng:r.toLng});
-  });
-
-  if(!bounds.isEmpty()&&places.length+routes.length>0){
-    if(places.length+routes.length===1)GMAP.setCenter(places[0]?{lat:places[0].lat,lng:places[0].lng}:{lat:routes[0].fromLat,lng:routes[0].fromLng});
-    else GMAP.fitBounds(bounds,60);
-  }
-}
-
 // ── SHARED MAP FUNCTIONS ──
-function renderMap(){
-  if(S.mapSystem==='osm')renderLeafletMap();
-  else renderGoogleMap();
-}
+function renderMap(){renderLeafletMap();}
 
 function fitAll(){
   const places=curPl().filter(p=>p.lat&&p.lng);
   const routes=curRts().filter(r=>r.fromLat&&r.toLat);
   if(!places.length&&!routes.length){notif('Nav vietu kartē','err');return;}
-  if(S.mapSystem==='osm'&&LMAP){
+  if(LMAP){
     const pts=[...places.map(p=>[p.lat,p.lng]),...routes.flatMap(r=>[[r.fromLat,r.fromLng],[r.toLat,r.toLng]])];
     if(pts.length===1)LMAP.setView(pts[0],14);
     else LMAP.fitBounds(pts,{padding:[50,50]});
-  } else if(GMAP){
-    const b=new google.maps.LatLngBounds();
-    places.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
-    routes.forEach(r=>{b.extend({lat:r.fromLat,lng:r.fromLng});b.extend({lat:r.toLat,lng:r.toLng});});
-    GMAP.fitBounds(b,60);
   }
 }
 
@@ -1448,7 +1407,6 @@ let myLocMarker=null;
 let myLocRing=null;
 function goToMyLocation(){
   const btn=document.getElementById('loc-btn');
-  // Check if permission already denied
   if(navigator.permissions){
     navigator.permissions.query({name:'geolocation'}).then(result=>{
       if(result.state==='denied'){
@@ -1488,8 +1446,6 @@ function placeMyLocMarker(lat,lng,acc){
       iconSize:[22,22],iconAnchor:[11,11]});
     myLocMarker=L.marker([lat,lng],{icon,zIndexOffset:2000,interactive:false}).addTo(LMAP);
     if(acc){myLocRing=L.circleMarker([lat,lng],{radius:Math.min(Math.max(acc/8,8),50),color:'#3B82F6',weight:1,fillColor:'#3B82F6',fillOpacity:.1,interactive:false}).addTo(LMAP);}
-  } else if(GMAP){
-    GMAP.setCenter({lat,lng});GMAP.setZoom(14);
   }
 }
 function showLocFallback(){
@@ -1546,18 +1502,15 @@ function renderTimeline(ctId){
   const pls=curPl();const rts=curRts();
   const allItems=[...pls.map(p=>({...p,_t:'place'})),...rts.map(r=>({...r,_t:'route'}))];
 
-  // Build date range
   let minDate=trip.startDate||null,maxDate=trip.endDate||null;
   allItems.forEach(it=>{
     if(it.date){if(!minDate||it.date<minDate)minDate=it.date;if(!maxDate||it.date>maxDate)maxDate=it.date;}
   });
   if(!minDate){ct.innerHTML=`<h2 class="sh">Laika skala</h2><p class="ss">Ceļojuma vizuālais pārskats</p>${emH('📅','Pievienojiet vietas ar datumiem, lai redzētu laika skalu')}`;return;}
-  // Extend by 1 day each side for visual breathing
   const minD=new Date(minDate+'T12:00:00');
   const maxD=new Date(maxDate+'T12:00:00');
   const totalDays=Math.round((maxD-minD)/86400000)+1;
 
-  // Stats
   const pc=pls.length,rc=rts.length,vc=pls.filter(p=>p.visited).length;
   const days=dbw(trip.startDate,trip.endDate);
 
@@ -1582,10 +1535,8 @@ function renderTimeline(ctId){
       ).join('')}
     </div>`;
 
-  // Build columns per day
   h+='<div class="tl-outer"><div class="tl-grid" id="tl-grid-inner">';
 
-  // Now indicator column position
   const isInRange=todayStr>=minDate&&todayStr<=maxDate;
   let todayOffset=0;
   if(isInRange){
@@ -1599,7 +1550,6 @@ function renderTimeline(ctId){
     const isPast=dateStr<todayStr;
     const dayItems=allItems.filter(it=>it.date===dateStr);
 
-    // Day label
     const dayNames=['Sv','P','O','T','C','Pk','S'];
     const months=['Jan','Feb','Mar','Apr','Mai','Jūn','Jūl','Aug','Sep','Okt','Nov','Dec'];
     const dn=dayNames[dateObj.getDay()];
@@ -1644,15 +1594,12 @@ function renderTimeline(ctId){
     h+='</div></div>';
   }
 
-  h+='</div>';// tl-grid
-
-  // Inject NOW line via JS after render
+  h+='</div>';
   if(isInRange){
     h+=`<div id="tl-now-data" data-day="${todayOffset}" style="display:none"></div>`;
   }
-  h+='</div>';// tl-outer
+  h+='</div>';
 
-  // Items without dates
   const noDate=allItems.filter(it=>!it.date);
   if(noDate.length){
     h+=`<div style="margin-top:16px"><h3 style="font-size:14px;font-weight:700;color:var(--mu);margin-bottom:8px">📌 Bez datuma</h3>
@@ -1670,7 +1617,6 @@ function renderTimeline(ctId){
 
   ct.innerHTML=h;
 
-  // Position NOW line
   requestAnimationFrame(()=>{
     const nd=document.getElementById('tl-now-data');
     const grid=document.getElementById('tl-grid-inner');
@@ -1688,7 +1634,6 @@ function renderTimeline(ctId){
     nowLine.style.left=x+'px';
     nowLine.innerHTML='<div class="tl-now-label">● TAGAD</div>';
     grid.appendChild(nowLine);
-    // Scroll to today
     const outer=grid.parentElement;
     outer.scrollLeft=Math.max(0,x-outer.clientWidth/2);
   });
@@ -1712,7 +1657,6 @@ async function triggerPwaInstall(){
     hidePwaBanner();
     if(outcome==='accepted')notif('Lietotne instalēta! 🎉','ok');
   } else {
-    // iOS Safari fallback
     notif('iOS: nospied Kopīgot → Pievienot sākuma ekrānam','inf');
     hidePwaBanner();
   }
@@ -1720,11 +1664,9 @@ async function triggerPwaInstall(){
 function initPWABanner(){
   const dismissed=parseInt(localStorage.getItem('cp5_pwa_dismissed')||'0');
   const oneDayAgo=Date.now()-86400000*3;
-  if(dismissed>oneDayAgo)return; // don't show again for 3 days
-  // Show when prompt is ready
+  if(dismissed>oneDayAgo)return;
   window.addEventListener('pwaReady',()=>setTimeout(showPwaBanner,3000));
   window.addEventListener('pwaInstalled',hidePwaBanner);
-  // iOS detection (no beforeinstallprompt)
   const isIOS=/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
   const isInStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
   if(isIOS&&!isInStandalone){
@@ -1737,13 +1679,9 @@ function initPWABanner(){
 // Reverse geocode
 async function revGeo(lat,lng,cb){
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'User-Agent':'CelojumaPlānotājs/1.6'}});
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,{headers:{'User-Agent':'CelojumaPlānotājs/3.3'}});
     const d=await r.json();cb(d.display_name||`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
   }catch(e){cb(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);}
-}
-function revGeoGoogle(lat,lng,cb){
-  if(!google?.maps){cb('');return;}
-  new google.maps.Geocoder().geocode({location:{lat,lng}},(res,st)=>cb(st==='OK'&&res[0]?res[0].formatted_address:`${lat.toFixed(5)}, ${lng.toFixed(5)}`));
 }
 
 // ── SEARCH ──
@@ -1752,7 +1690,7 @@ function setupSearch(){
   i.addEventListener('input',()=>{
     const q=i.value.trim();
     document.getElementById('ms-clr').classList.toggle('show',q.length>0);
-    if(q.length<2){hideAc();return;}
+    if(q.length<3){hideAc();return;}
     clearTimeout(acTimer);acTimer=setTimeout(()=>fetchAc(q),300);
   });
   i.addEventListener('keydown',e=>{if(e.key==='Enter'){hideAc();doSearch();}if(e.key==='Escape')clearSearch();});
@@ -1761,6 +1699,7 @@ function setupSearch(){
 
 async function fetchAc(q){
   if(q===lastAcQ)return;lastAcQ=q;
+  if(q.length<3)return;
   const ac=document.getElementById('ms-ac');
   ac.innerHTML='<div style="padding:10px 16px;font-size:13px;color:var(--mu);display:flex;align-items:center;gap:8px"><span class="spin"></span>Meklē...</div>';
   ac.classList.add('show');
@@ -1818,10 +1757,7 @@ function pickAc(lat,lng,name,addr){
   document.getElementById('ms-clr').classList.add('show');
   pendingClick={lat,lng,address:addr,name};
   showClickPop(addr);
-  // Pan map
   if(S.mapSystem==='osm'&&LMAP)LMAP.setView([lat,lng],15);
-  else if(GMAP)GMAP.panTo({lat,lng});
-  // Search pin
   if(searchPin&&S.mapSystem==='osm'){searchPin.remove();searchPin=null;}
   if(S.mapSystem==='osm'&&LMAP){
     const icon=L.divIcon({className:'',html:`<div style="background:var(--A,#D4712E);color:#fff;padding:5px 10px;border-radius:12px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap">🔍 ${esc((name||'').slice(0,25))}</div>`,iconAnchor:[0,0]});
@@ -1854,8 +1790,7 @@ function toggleLayout(){
 }
 function toggleSb(){
   S.sbCol=!S.sbCol;localStorage.setItem('cp5_sbcol',S.sbCol);applySb();
-  if(S.mapSystem==='osm'&&LMAP)setTimeout(()=>LMAP.invalidateSize(),220);
-  else if(GMAP)setTimeout(()=>google.maps.event.trigger(GMAP,'resize'),220);
+  if(LMAP)setTimeout(()=>LMAP.invalidateSize(),220);
 }
 function applyLayout(){
   const mob=document.getElementById('mob'),desk=document.getElementById('desk');
@@ -1873,8 +1808,7 @@ function applyLayout(){
     ensureMapIn('p-map');
   }
   applySb();
-  if(S.mapSystem==='osm'&&LMAP)setTimeout(()=>LMAP.invalidateSize(),80);
-  else if(GMAP)setTimeout(()=>google.maps.event.trigger(GMAP,'resize'),80);
+  if(LMAP)setTimeout(()=>LMAP.invalidateSize(),80);
 }
 function applySb(){
   const sb=document.getElementById('sb'),ch=document.getElementById('sb-chev'),ft=document.getElementById('sb-foot');
@@ -1886,7 +1820,7 @@ function applySb(){
 }
 function ensureMapIn(pid){
   const mw=document.getElementById('map-wrap'),par=document.getElementById(pid);
-  if(!mw||!par)return;if(mw.parentElement!==par){par.innerHTML='';par.appendChild(mw);}
+  if(!mw||!par)return;par.innerHTML='';par.appendChild(mw);
   mw.style.cssText='display:block;position:absolute;inset:0;';
 }
 
@@ -1900,22 +1834,22 @@ function switchTab(tab){
     document.querySelectorAll('.sn').forEach(b=>b.classList.remove('on'));
     const dp=document.getElementById('dp-'+tab);if(dp)dp.classList.add('on');
     const sn=document.getElementById('sn-'+tab);if(sn)sn.classList.add('on');
-    if(tab==='map'){ensureMapIn('dp-map');setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP)LMAP.invalidateSize();else if(GMAP)google.maps.event.trigger(GMAP,'resize');},80);renderMap();}
+    if(tab==='map'){ensureMapIn('dp-map');setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},80);renderMap();}
     else if(tab==='plans')renderPlan('d-plans-ct','d-plans-sub',true);
     else if(tab==='docs')renderDocs('d-docs-ct','d-doc-filt',true);
     else if(tab==='trips')renderTrips('d-trips-ct');
-    else if(tab==='tl')renderTimeline('d-tl-ct');
+    else if(tab==='tl')switchTab('plans');
     else if(tab==='set')renderSet('d-set-ct');
   }else{
     document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
     document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
     const pane=document.getElementById('p-'+tab);if(pane)pane.classList.add('on');
     const nb=document.getElementById('nb-'+tab);if(nb)nb.classList.add('on');
-    if(tab==='map'){ensureMapIn('p-map');setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP)LMAP.invalidateSize();else if(GMAP)google.maps.event.trigger(GMAP,'resize');},80);renderMap();}
+    if(tab==='map'){ensureMapIn('p-map');setTimeout(()=>{if(LMAP)LMAP.invalidateSize();},80);renderMap();}
     else if(tab==='plans')renderPlan('plans-ct','plans-sub',false);
     else if(tab==='docs')renderDocs('docs-ct','doc-filt',false);
     else if(tab==='trips')renderTrips('trips-ct');
-    else if(tab==='tl')renderTimeline('tl-ct');
+    else if(tab==='tl')switchTab('plans');
     else if(tab==='set')renderSet('set-ct');
   }
 }
@@ -1941,45 +1875,39 @@ const selTrip=id=>{S.tripId=id;save();renderAll();};
 // PLAN — with NOW indicator & flight progress
 // ══════════════════════════════════════════════════════
 
-// Returns {nowMs, todayStr} for current time comparisons
 function getNow(){
   const n=new Date();
   return {nowMs:n.getTime(),todayStr:n.toISOString().slice(0,10),
     nowTimeStr:n.toTimeString().slice(0,5),nowH:n.getHours(),nowMin:n.getMinutes()};
 }
 
-// Check if a place/route is currently happening
 function itemStatus(it){
   const {nowMs,todayStr,nowTimeStr}=getNow();
   if(!it.date)return 'future';
   if(it.date<todayStr)return 'past';
   if(it.date>todayStr)return 'future';
-  // Same day
   if(it._type==='route'){
-    // Flight: use departureTime & arrivalTime if set, otherwise full day
     if(it.departureTime&&it.arrivalTime){
       if(nowTimeStr<it.departureTime)return 'future';
       if(nowTimeStr>it.arrivalTime)return 'past';
       return 'now';
     }
-    return 'now'; // flight day = in progress
+    return 'now';
   }
   if(it.time){
     if(nowTimeStr<it.time)return 'future';
-    // Consider 2h window as "now"
     const [h,m]=it.time.split(':').map(Number);
     const startMs=new Date().setHours(h,m,0,0);
     if(nowMs-startMs<7200000)return 'now';
     return 'past';
   }
-  return 'now'; // same day, no time = today
+  return 'now';
 }
 
-// Flight progress 0..100
 function flightProgress(r){
   const {todayStr,nowH,nowMin}=getNow();
   if(r.date!==todayStr)return null;
-  if(!r.departureTime||!r.arrivalTime)return 50; // mid-flight estimate
+  if(!r.departureTime||!r.arrivalTime)return 50;
   const toMin=s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
   const dep=toMin(r.departureTime),arr=toMin(r.arrivalTime);
   const now=nowH*60+nowMin;
@@ -1991,7 +1919,6 @@ function renderNowPanel(nowWrapId){
   const el=document.getElementById(nowWrapId);if(!el)return;
   const {todayStr}=getNow();
   const trip=curT();if(!trip)return;
-  // Find today's items
   const items=[...curPl(),...curRts()].filter(it=>it.date===todayStr);
   const activeRoutes=curRts().filter(r=>{
     if(r.date!==todayStr)return false;
@@ -2004,7 +1931,6 @@ function renderNowPanel(nowWrapId){
   });
   if(!items.length&&!activeRoutes.length){el.innerHTML='';return;}
   let h='';
-  // Active flights get a big progress card
   activeRoutes.forEach(r=>{
     const pct=flightProgress(r);const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
     h+=`<div style="background:linear-gradient(135deg,var(--P),var(--A));border-radius:18px;padding:16px;color:#fff;margin-bottom:12px">
@@ -2045,30 +1971,23 @@ function renderPlan(ctId,subId,desk){
     const isToday=date===todayStr;
     h+=`<div class="tlday"><div class="tldh"${isToday?' style="color:#EF4444;border-bottom-color:#FECACA"':''}>📅 ${lvmd(date)} · Diena ${day++}${isToday?' · <span style="color:#EF4444">ŠODIEN</span>':''}</div>`;
     byD[date].forEach((it,i,arr)=>{
-      const isLast=i===arr.length-1;
       const st=itemStatus(it);
-      // Insert NOW bar before first future item on today
       if(isToday&&!nowInserted&&st==='future'){
         nowInserted=true;
         h+=`<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`;
       }
       const dotCls=st==='now'?'r':st==='past'?'v':it._type==='route'?'r':'';
-      h+=`<div class="tli"><div class="tll"><div class="tldot ${dotCls}"></div>${!isLast?'<div class="tlline"></div>':''}</div><div class="tlc">`;
+      h+=`<div class="tli"><div class="tll"><div class="tldot ${dotCls}"></div>${!arr[i+1]?'':'<div class="tlline"></div>'}</div><div class="tlc">`;
       if(it._type==='route')h+=renderRouteCard(it,false,st);
-      else h+=renderPlaceCard(it,isLast,st);
+      else h+=renderPlaceCard(it,arr[i+1]?false:true,st);
       h+='</div></div>';
     });
-    // If today and all items are past, insert NOW at end
     if(isToday&&!nowInserted){
       nowInserted=true;
       h+=`<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`;
     }
     h+='</div>';
   });
-  // Insert NOW before future dates if not yet inserted and today is between dates
-  if(!nowInserted&&sortedDates.some(d=>d<todayStr)&&sortedDates.some(d=>d>todayStr)){
-    // Already rendered all past days, NOW is between days
-  }
   if(noD.length){
     h+='<div class="tlday"><div class="tldh">📌 Bez datuma</div>';
     noD.forEach(it=>{
@@ -2084,14 +2003,12 @@ function renderPlan(ctId,subId,desk){
 
 function renderPlaceCard(p,isLast,status){
   const pt=getPT(p.type);
-  const isPast=status==='past';const isNow=status==='now';
-  return `<div class="card" style="margin-bottom:${isLast?'0':'8px'};opacity:${isPast?.7:1}">
+  return `<div class="card" style="margin-bottom:${isLast?'0':'8px'};opacity:${status==='past'?'.7':'1'}">
     <div class="crow"><div>
       <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px">
         <span class="badge b-${p.type}">${pt.ico} ${pt.lbl}</span>
         ${p.visited?'<span class="badge b-visited">✓</span>':''}
-        ${isNow?'<span class="badge" style="background:#FEF2F2;color:#EF4444;animation:nowPulse 2s infinite">● Tagad</span>':''}
-      </div>
+        ${status==='now'?'<span class="badge" style="background:#FEF2F2;color:#EF4444;animation:nowPulse 2s infinite">● Tagad</span>':''}</div>
       <div class="ctit">${esc(p.name)}</div>
       ${p.time?`<div class="csub">🕐 ${p.time}</div>`:''}
       ${p.address?`<div class="csub">📍 ${esc(p.address)}</div>`:''}
@@ -2110,7 +2027,7 @@ function renderRouteCard(r,standalone,status){
   const time=gcTime(dist);
   const isNow=status==='now';const isPast=status==='past';
   const pct=isNow?flightProgress(r):null;
-  return `<div class="route-card" style="margin-bottom:8px;opacity:${isPast?.7:1}">
+  return `<div class="route-card" style="margin-bottom:8px;opacity:${isPast?'.7':'1'}">
     <div class="crow">
       <div style="flex:1">
         <div class="route-from-to"><span class="route-iata">${r.fromIata||'?'}</span><span class="route-arrow">✈️</span><span class="route-iata">${r.toIata||'?'}</span>${isNow?'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;animation:nowPulse 2s infinite">● Ceļā</span>':''}</div>
@@ -2173,7 +2090,6 @@ function renderDocs(ctId,filtId,desk){
 }
 
 function renderBoardingPass(d){
-  // Parse IATA codes from title e.g. "RIX-CDG" or "RIX → CDG"
   const iataMatch = (d.title||'').match(/([A-Z]{3})\s*[-–→]\s*([A-Z]{3})/);
   const fromIata = iataMatch ? iataMatch[1] : (d.fromIata||'???');
   const toIata   = iataMatch ? iataMatch[2] : (d.toIata  ||'???');
@@ -2183,16 +2099,9 @@ function renderBoardingPass(d){
   const toCity   = toAp   ? toAp[2]   : toIata;
   const dist     = (fromAp&&toAp) ? gcDist(fromAp[4],fromAp[5],toAp[4],toAp[5]) : null;
   const dur      = dist ? gcTime(dist) : null;
-  // Pseudo-random barcode seed from id
-  const seed = d.id ? d.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0) : 42;
-  const bars = Array.from({length:36},(_,i)=>{
-    const h = 40+Math.sin((seed+i*7)*0.6)*30+Math.sin((seed+i*13)*0.3)*20;
-    return Math.max(20,Math.min(100,Math.round(h)));
-  });
   const isUsed = d.bpUsed;
   return `<div class="bp-card${isUsed?' bp-status-used':''}">
     ${isUsed?'<div class="bp-used-badge">✓ Izmantots</div>':''}
-    <!-- Header -->
     <div class="bp-header">
       <div>
         <div class="bp-airline">${esc(d.provider||'Aviokompānija')}</div>
@@ -2200,7 +2109,6 @@ function renderBoardingPass(d){
       </div>
       <div class="bp-class">Iekāpšanas karte</div>
     </div>
-    <!-- Route -->
     <div class="bp-route-row">
       <div class="bp-airport">
         <div class="bp-iata">${fromIata}</div>
@@ -2216,59 +2124,21 @@ function renderBoardingPass(d){
         <div class="bp-city">${esc(toCity)}</div>
       </div>
     </div>
-    <!-- Dashed separator -->
-    <div class="bp-sep">
-      <div class="bp-notch"></div>
-      <div class="bp-dash"></div>
-      <div class="bp-notch"></div>
-    </div>
-    <!-- Info grid -->
+    <div class="bp-sep"><div class="bp-notch"></div><div class="bp-dash"></div><div class="bp-notch"></div></div>
     <div class="bp-info">
-      <div class="bp-field">
-        <div class="bp-field-label">Datums</div>
-        <div class="bp-field-value">${d.date?fd(d.date):'—'}</div>
-      </div>
-      <div class="bp-field">
-        <div class="bp-field-label">Izlidošana</div>
-        <div class="bp-field-value">${d.departureTime||'—'}</div>
-      </div>
-      <div class="bp-field">
-        <div class="bp-field-label">Ielidošana</div>
-        <div class="bp-field-value">${d.arrivalTime||'—'}</div>
-      </div>
-      <div class="bp-field">
-        <div class="bp-field-label">Reiss</div>
-        <div class="bp-field-value mono">${esc(d.flightNumber||d.confirmationNumber||'—')}</div>
-      </div>
-      <div class="bp-field">
-        <div class="bp-field-label">Klase</div>
-        <div class="bp-field-value">${esc(d.seatClass||'Economy')}</div>
-      </div>
-      <div class="bp-field">
-        <div class="bp-field-label">Vieta</div>
-        <div class="bp-field-value mono">${esc(d.seat||'—')}</div>
-      </div>
-      ${d.passenger?`<div class="bp-field" style="grid-column:1/-1">
-        <div class="bp-field-label">Pasažieris</div>
-        <div class="bp-field-value">${esc(d.passenger)}</div>
-      </div>`:''}
-      ${d.notes?`<div class="bp-field" style="grid-column:1/-1">
-        <div class="bp-field-label">Piezīmes</div>
-        <div class="bp-field-value" style="font-size:11px;font-weight:400;color:var(--mu)">${esc(d.notes)}</div>
-      </div>`:''}
+      <div class="bp-field"><div class="bp-field-label">Datums</div><div class="bp-field-value">${d.date?fd(d.date):'—'}</div></div>
+      <div class="bp-field"><div class="bp-field-label">Izlidošana</div><div class="bp-field-value">${d.departureTime||'—'}</div></div>
+      <div class="bp-field"><div class="bp-field-label">Ielidošana</div><div class="bp-field-value">${d.arrivalTime||'—'}</div></div>
+      <div class="bp-field"><div class="bp-field-label">Reiss</div><div class="bp-field-value mono">${esc(d.flightNumber||d.confirmationNumber||'—')}</div></div>
+      <div class="bp-field"><div class="bp-field-label">Klase</div><div class="bp-field-value">${esc(d.seatClass||'Economy')}</div></div>
+      <div class="bp-field"><div class="bp-field-label">Vieta</div><div class="bp-field-value mono">${esc(d.seat||'—')}</div></div>
+      ${d.passenger?`<div class="bp-field" style="grid-column:1/-1"><div class="bp-field-label">Pasažieris</div><div class="bp-field-value">${esc(d.passenger)}</div></div>`:''}
+      ${d.notes?`<div class="bp-field" style="grid-column:1/-1"><div class="bp-field-label">Piezīmes</div><div class="bp-field-value" style="font-size:11px;font-weight:400;color:var(--mu)">${esc(d.notes)}</div></div>`:''}
     </div>
-    <!-- Barcode -->
-    <div class="bp-barcode">
-      <div class="bp-barcode-bars">
-        ${bars.map(h=>`<span style="height:${h}%"></span>`).join('')}
-      </div>
-      <div class="bp-conf">
-        <div style="font-size:9px;color:var(--mu);margin-bottom:2px">PNR</div>
-        <div class="bp-conf-num">${esc(d.confirmationNumber||'------')}</div>
-        ${dist?`<div style="font-size:9px;color:var(--mu);margin-top:3px">${dist.toLocaleString()} km</div>`:''}
-      </div>
+    <div class="bp-pnr-strip">
+      <div class="bp-conf"><div style="font-size:9px;color:var(--mu);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Apstiprinājuma Nr.</div><div class="bp-conf-num">${esc(d.confirmationNumber||'—')}</div></div>
+      ${dist?`<div style="text-align:right"><div style="font-size:9px;color:var(--mu)">Attālums</div><div style="font-size:12px;font-weight:600;color:var(--tx)">${dist.toLocaleString()} km</div></div>`:''}
     </div>
-    <!-- Actions -->
     <div class="bp-actions">
       <button class="btn bp bsm" onclick="showDocModal('${d.id}')" style="flex:1">✏️ Rediģēt</button>
       <button class="btn bg2 bsm" onclick="toggleBpUsed('${d.id}')" style="flex:1">${isUsed?'↩ Atjaunot':'✓ Atzīmēt'}</button>
@@ -2313,7 +2183,10 @@ function renderTrips(ctId){
           <div><div class="tcsn">${dc}</div><div class="tcsl">Dok.</div></div>
           ${days?`<div><div class="tcsn">${days}</div><div class="tcsl">Dienas</div></div>`:''}
         </div>
-        <div style="display:flex;gap:6px"><button class="btn bg2 bsm" onclick="event.stopPropagation();showTripModal('${t.id}')">✏️</button><button class="btn bd bsm" onclick="event.stopPropagation();delTrip('${t.id}')">🗑️</button></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn bg2 bsm" onclick="event.stopPropagation();showTripModal('${t.id}')">✏️</button>
+          <button class="btn bd bsm" onclick="event.stopPropagation();delTrip('${t.id}')">🗑️</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -2327,7 +2200,6 @@ function renderSet(id){
   el.innerHTML=`
     <h2 class="sh">Iestatījumi</h2>
     <p class="ss">Izskata, kartes un datu pārvaldība</p>
-
     ${setS('app','🎨 Izskats',`
       <div class="sec-lbl">Krāsu tēma</div>
       <div class="theme-grid">
@@ -2336,16 +2208,8 @@ function renderSet(id){
       <div style="font-size:11px;color:var(--mu);margin:4px 0 12px">${THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')}</div>
       <div class="sec-lbl">Fonta stils</div>
       <div class="font-row">
-        <button class="fntbtn${S.font==='app'?' on':''}" style="font-family:'DM Sans',sans-serif" onclick="applyFont('app')">
-          <div style="font-size:16px">Aa</div>
-          <div>Lietotnes fonts</div>
-          <div style="font-size:10px;opacity:.7">DM Sans + Lora</div>
-        </button>
-        <button class="fntbtn${S.font==='system'?' on':''}" style="font-family:system-ui,sans-serif" onclick="applyFont('system')">
-          <div style="font-size:16px">Aa</div>
-          <div>Sistēmas fonts</div>
-          <div style="font-size:10px;opacity:.7">Ātrāk ielādējas</div>
-        </button>
+        <button class="fntbtn${S.font==='app'?' on':''}" style="font-family:'DM Sans',sans-serif" onclick="applyFont('app')"><div style="font-size:16px">Aa</div><div>Lietotnes fonts</div><div style="font-size:10px;opacity:.7">DM Sans + Lora</div></button>
+        <button class="fntbtn${S.font==='system'?' on':''}" style="font-family:system-ui,sans-serif" onclick="applyFont('system')"><div style="font-size:16px">Aa</div><div>Sistēmas fonts</div><div style="font-size:10px;opacity:.7">Ātrāk ielādējas</div></button>
       </div>
       <div style="margin-top:14px"><div class="sec-lbl">Teksta izmērs</div>
         <div class="fs-btn-row">
@@ -2355,39 +2219,20 @@ function renderSet(id){
           <button class="fs-btn" onclick="resetFontSize()" title="Atiestatīt" style="font-size:12px">↺</button>
         </div>
       </div>`)}
-
     ${setS('map','🗺️ Kartes sistēma',`
       <div class="mapsys-row">
-        <button class="msbtn${S.mapSystem==='osm'?' on':''}" onclick="setMapSys('osm')">
-          <span class="msbtn-ico">🌍</span>
-          <span>OpenStreetMap</span>
-          <span style="font-size:10px;opacity:.7">Bez reģistrācijas</span>
-        </button>
-        <button class="msbtn${S.mapSystem==='google'?' on':''}" onclick="setMapSys('google')">
-          <span class="msbtn-ico">📍</span>
-          <span>Google Maps</span>
-          <span style="font-size:10px;opacity:.7">Nepieciešama API atslēga</span>
-        </button>
+        <button class="msbtn${S.mapSystem==='osm'?' on':''}" onclick="switchMapSystem('osm')">
+          <span class="msbtn-ico">🌍</span><span>OpenStreetMap</span><span style="font-size:10px;opacity:.7">Bez reģistrācijas</span></button>
       </div>
-      ${S.mapSystem==='google'?`<div class="fg" style="margin-top:12px"><label class="fl">Google Maps API Atslēga</label>
-        <input class="inp" id="gapi-inp" type="text" placeholder="AIzaSy..." value="${esc(S.apiKey)}" oninput="S.apiKey=this.value;localStorage.setItem('cp5_apiKey',this.value)">
-        <p style="font-size:11px;color:var(--mu);margin-top:5px">Nepieciešamas: Maps JavaScript API + Places API<br><a href="https://console.cloud.google.com" target="_blank" style="color:var(--P)">console.cloud.google.com</a></p>
-      </div>
-      <button class="btn bp bsm" onclick="activateGoogle()">Aktivizēt Google Maps</button>`:''}
       <button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab('map');fitAll()">🎯 Atiestatīt skatu</button>`)}
-
     ${setS('sync','☁️ Google Sheets Sinhronizācija',`
-      <div class="fg"><label class="fl">Apps Script URL</label>
-        <input class="inp" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(S.syncUrl)}" oninput="S.syncUrl=this.value;localStorage.setItem('cp5_syncUrl',this.value)">
-      </div>
+      <div class="fg"><label class="fl">Apps Script URL</label><input class="inp" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(S.syncUrl)}" oninput="S.syncUrl=this.value;localStorage.setItem('cp5_syncUrl',this.value)"></div>
       <div class="srow"><div><b style="font-size:13px">Automātiskā sinhronizācija</b><div style="font-size:11px;color:var(--mu)">Ielādēt atverot lietotni</div></div>
-        <button class="tog${S.autoSync?' on':''}" id="as-tog" onclick="toggleAS()"></button>
-      </div>
+        <button class="tog${S.autoSync?' on':''}" id="as-tog" onclick="toggleAS()"></button></div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt mākonī</button>
         <button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt no mākoņa</button>
       </div>`)}
-
     ${setS('asc','📋 Apps Script Kods',`
       <p style="font-size:12px;color:var(--mu);margin-bottom:10px">1. <b>script.google.com</b> → Jauns projekts<br>2. Ielīmē kodu<br>3. Izvēto: Execute as: Me · Access: Anyone<br>4. Kopē URL</p>
       <div class="codeblk" id="asc-c">function doGet(e){
@@ -2419,7 +2264,6 @@ function doPost(e){
   }
 }</div>
       <button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>`)}
-
     ${setS('dt','💾 Lokālie dati',`
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON rezerves kopiju</button>
@@ -2427,7 +2271,7 @@ function doPost(e){
         <button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button>
       </div>`)}
     <div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">
-      Ceļojuma Plānotājs v1.5 · Karte: OpenStreetMap / Google Maps<br>
+      Ceļojuma Plānotājs v3.3 · Karte: OpenStreetMap<br>
       Lidojumu maršruti aprēķināti bezsaistē (lielā loks)
     </div>`;
 }
@@ -2435,18 +2279,6 @@ function setS(id,title,body){return `<div class="sset"><div class="sseth" onclic
 function togSet(id){const b=document.getElementById('sb-'+id),c=document.getElementById('sc-'+id);if(!b)return;const op=b.style.display!=='none';b.style.display=op?'none':'block';if(c)c.style.transform=op?'':'rotate(180deg)';}
 function toggleAS(){S.autoSync=!S.autoSync;localStorage.setItem('cp5_autoSync',S.autoSync);const t=document.getElementById('as-tog');if(t)t.classList.toggle('on',S.autoSync);}
 
-function setMapSys(sys){
-  switchMapSystem(sys);
-  if(S.tab==='set'){if(S.isDesk)renderSet('d-set-ct');else renderSet('set-ct');}
-  else switchTab('map');
-}
-function activateGoogle(){
-  const k=(document.getElementById('gapi-inp')?.value||S.apiKey).trim();
-  if(!k){notif('Ievadi API atslēgu!','err');return;}
-  S.apiKey=k;localStorage.setItem('cp5_apiKey',k);
-  loadGoogleScript(k);notif('Ielādē Google Maps...','inf');
-  switchTab('map');
-}
 function cpScript(){const el=document.getElementById('asc-c');if(el)navigator.clipboard.writeText(el.textContent).then(()=>notif('Kods nokopēts!','ok'));}
 
 // ══════════════════════════════════════════════════════
@@ -2633,7 +2465,6 @@ function pickAp(side,iata,name,lat,lng){
   document.getElementById(`r-${side}-q`).value=iata;
   document.getElementById(`r-${side}-lbl`).textContent=`${iata} — ${name}`;
   document.getElementById('ap-'+side).classList.remove('show');
-  // Update distance preview
   const flat=parseFloat(document.getElementById('r-flat').value);
   const flng=parseFloat(document.getElementById('r-flng').value);
   const tlat=parseFloat(document.getElementById('r-tlat').value);
@@ -2678,9 +2509,7 @@ function showDocModal(editId){
     <div class="fg"><label class="fl">Dokumenta tips</label>
       <div class="dtg">${DT.map(t=>`<button type="button" class="dtb${selDocType===t.id?' on':''}" id="dt-${t.id}" onclick="pickDT('${t.id}');toggleBpFields()">${t.ico} ${t.lbl}</button>`).join('')}</div>
     </div>
-    <!-- Common fields -->
     <div class="fg"><label class="fl">Nosaukums *</label><input class="inp" id="dm-n" value="${esc(d?d.title:'')}" placeholder="${selDocType==='lidojums'?'piem. RIX → CDG':'piem. Lidojums RIX → CDG'}"></div>
-    <!-- Boarding pass fields -->
     <div id="dm-bp-fields" style="${d?.type==='lidojums'||(!d&&selDocType==='lidojums')?'':'display:none'}">
       <div style="background:var(--Pl);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--P)">
         ✈️ Iekāpšanas kartes lauki — nosaukumā norādi lidostas: <b>RIX - CDG</b>
@@ -2706,7 +2535,6 @@ function showDocModal(editId){
       </div>
       <div class="fg"><label class="fl">Pasažiera vārds</label><input class="inp" id="dm-pax" value="${esc(d?.passenger||'')}" placeholder="Vārds Uzvārds"></div>
     </div>
-    <!-- Common fields continued -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="fg" id="dm-date-row">
       <div><label class="fl">Datums</label><input class="inp" type="date" id="dm-d" value="${d?d.date||'':''}"></div>
       <div><label class="fl">Pakalpojumu sniedzējs</label><input class="inp" id="dm-pr" value="${esc(d?d.provider||'':'')}" placeholder="piem. Air Baltic"></div>
@@ -2818,7 +2646,7 @@ async function clearAll(){
 }
 
 // ══════════════════════════════════════════════════════
-// PDF EXPORT — A4, jsPDF
+// PDF EXPORT
 // ══════════════════════════════════════════════════════
 function exportPDF(){
   const trip=curT();
@@ -2835,8 +2663,6 @@ function exportPDF(){
   const [PR,PG,PB]=hexRGB('#1A5F58');
   const [AR,AG,AB]=hexRGB('#D4712E');
 
-  // ── Unicode-safe text via canvas ──
-  // We render Latvian text to a canvas image and embed as PNG
   const _cv=document.createElement('canvas');
   const _ctx=_cv.getContext('2d');
   function textImg(text,fontSize,bold,color){
@@ -2855,10 +2681,10 @@ function exportPDF(){
   function addTxt(text,x,y,{size=10,bold=false,color='#1C1C2E',maxW=null,align='left'}={}){
     if(!text)return 0;
     const str=String(text);
-    // Split into lines if maxW set
     const words=maxW?str.split(' '):null;
     if(words&&words.length>1){
-      let ln='';let lh=size*0.45;let totalH=0;
+      let ln='';let totalH=0;
+      const lh=size*0.55;
       for(let i=0;i<words.length;i++){
         const test=ln?ln+' '+words[i]:words[i];
         const img=textImg(test,size,bold,color);
@@ -2869,7 +2695,7 @@ function exportPDF(){
         } else ln=test;
       }
       if(ln){const li=textImg(ln,size,bold,color);doc.addImage(li.data,'PNG',x,y+totalH,li.wmm,li.hmm);totalH+=lh;}
-      return totalH+size*0.45;
+      return totalH;
     }
     const im=textImg(str,size,bold,color);
     const ax=align==='right'?x-im.wmm:align==='center'?x-im.wmm/2:x;
@@ -2879,7 +2705,6 @@ function exportPDF(){
   function addPage(){doc.addPage();y=0;}
   function checkY(need=20){if(y+need>282)addPage();}
 
-  // ── COVER ──
   doc.setFillColor(PR,PG,PB);doc.rect(0,0,W,52,'F');
   doc.setFillColor(AR,AG,AB);doc.rect(0,52,W,4,'F');
   const tripName=trip.name.length>35?trip.name.slice(0,35)+'…':trip.name;
@@ -2890,7 +2715,6 @@ function exportPDF(){
   const dstr=dr+(days?' · '+days+' dienas':'');
   if(dstr)addTxt(dstr,W/2,40,{size:10,color:'#C8F0EC',align:'center'});
 
-  // Stats
   doc.setFillColor(248,251,250);doc.rect(0,56,W,28,'F');
   doc.setDrawColor(220,230,228);doc.line(0,84,W,84);
   const stats=[{n:P.length,l:'Vietas'},{n:R.length,l:'Lidojumi'},{n:D.length,l:'Dokumenti'},...(days?[{n:days,l:'Dienas'}]:[])];
@@ -2907,7 +2731,6 @@ function exportPDF(){
     y+=dh+4;
   }
 
-  // ── SECTION HEADER ──
   function secHdr(title){
     checkY(16);y+=4;
     doc.setFillColor(PR,PG,PB);doc.roundedRect(ML,y,TW,9,2,2,'F');
@@ -2915,7 +2738,6 @@ function exportPDF(){
     y+=13;
   }
 
-  // ── ITINERARY ──
   secHdr('ITINERĀRS');
   const allItems=[...P.map(p=>({...p,_type:'place'})),...R.map(r=>({...r,_type:'route'}))];
   allItems.sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
@@ -2949,7 +2771,6 @@ function exportPDF(){
     y+=3;
   });
 
-  // No-date items
   if(noD.length){
     checkY(12);addTxt('Bez datuma',ML,y,{size:10,bold:true,color:'#1A5F58'});y+=5;
     noD.forEach(it=>{
@@ -2959,7 +2780,6 @@ function exportPDF(){
     });
   }
 
-  // ── FLIGHTS ──
   if(R.length){
     secHdr('LIDOJUMU MARŠRUTI');
     R.forEach(r=>{
@@ -2974,7 +2794,6 @@ function exportPDF(){
     });
   }
 
-  // ── DOCUMENTS ──
   if(D.length){
     secHdr('DOKUMENTI');
     D.forEach(d=>{
@@ -2992,18 +2811,18 @@ function exportPDF(){
     });
   }
 
-  // ── FOOTER ──
   const pageCount=doc.getNumberOfPages();
   for(let i=1;i<=pageCount;i++){
     doc.setPage(i);
     doc.setDrawColor(220,228,226);doc.setLineWidth(.3);doc.line(ML,286,MR,286);
-    addTxt('Ceļojuma Plānotājs v1.7 · '+trip.name,ML,288,{size:8,color:'#AAB4B2'});
+    addTxt('Ceļojuma Plānotājs v3.3 · '+trip.name,ML,288,{size:8,color:'#AAB4B2'});
     addTxt(i+' / '+pageCount,MR,288,{size:8,color:'#AAB4B2',align:'right'});
   }
   const fn=trip.name.replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_')+'_'+(trip.startDate||'celoejums')+'.pdf';
   doc.save(fn);
   notif('PDF eksportēts! 📄','ok');
 }
+
 // ══════════════════════════════════════════════════════
 // NOTIF & ONLINE
 // ══════════════════════════════════════════════════════
@@ -3024,21 +2843,28 @@ document.addEventListener('DOMContentLoaded',()=>{
   setupSearch();
   initPWABanner();
 
-  // Init map system
-  if(S.mapSystem==='osm'){
-    document.getElementById('lmap').style.display='block';
-    document.getElementById('gmap').style.display='none';
-    initLeaflet();
-  } else {
-    document.getElementById('lmap').style.display='none';
-    document.getElementById('gmap').style.display='block';
-    if(S.apiKey)loadGoogleScript(S.apiKey);
-    else document.getElementById('gmap-nokey').style.display='flex';
-  }
+  // Init map system (OSM only)
+  document.getElementById('lmap').style.display='block';
+  document.getElementById('gmap').style.display='none';
+  initLeaflet();
 
+  S.isDesk = window.innerWidth >= 900;
+  applyLayout();
   renderAll();
-  setTimeout(()=>{if(S.mapSystem==='osm'&&LMAP){LMAP.invalidateSize();renderMap();}},200);
+
+  window.addEventListener('resize', ()=>{
+    const wasDesk = S.isDesk;
+    S.isDesk = window.innerWidth >= 900;
+    if(S.isDesk !== wasDesk){ applyLayout(); renderAll(); }
+  });
+
+  setTimeout(()=>{if(LMAP){LMAP.invalidateSize();renderMap();}},200);
   if(S.autoSync&&S.syncUrl&&navigator.onLine)setTimeout(syncDown,800);
+
+  history.replaceState({tab:S.tab},'',location.href);
+  window.addEventListener('popstate', e=>{
+    history.pushState({tab:S.tab},'',location.href);
+  });
 });
 </script>
 </body>
