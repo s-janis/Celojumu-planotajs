@@ -1246,12 +1246,23 @@
         body.is-desk .mhdl {
             display: none;
         }
-        .route-card { cursor: grab; user-select: none;
+        .route-card {
             background: linear-gradient(135deg, var(--P), var(--A));
             border-radius: 16px;
             padding: 14px 16px;
             color: #fff;
             margin-bottom: 8px;
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .route-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .route-card.drag-over {
+            box-shadow: 0 0 0 3px var(--P);
+            transform: scale(1.02);
         }
         #nwrap {
             position: fixed;
@@ -1519,8 +1530,8 @@
             letter-spacing: -2px;
         }
         .drag-handle:hover { opacity: 1; color: var(--P); }
-        .card.drag-over { border: 2px dashed var(--P) !important; background: var(--Pl) !important; }
-        .card.dragging { opacity: .4; }
+        .card.drag-over, .route-card.drag-over { border: 2px dashed var(--P) !important; background: rgba(0,0,0,0.05) !important; }
+        .card.dragging, .route-card.dragging { opacity: .4; cursor: grabbing; }
     </style>
 </head>
 <body>
@@ -1528,7 +1539,7 @@
         <header id="hdr">
             <div class="logo">
                 <div class="logo-ico">✈️</div>
-                <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v4.0</div></div>
+                <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v4.1</div></div>
             </div>
             <div class="hdr-r">
                 <span id="odot" class="dot-on" title="Tiešsaistē"></span>
@@ -1622,9 +1633,8 @@
         'carto_dark': { name: 'CartoDB Tumšais', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr: '© CartoDB' },
         'topo': { name: 'OpenTopoMap (topogrāfija)', url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr: '© OpenTopoMap' }
     };
-    const AIRPORTS = [
-        ['RIX', 'Rīga Starptautiskā', 'Rīga', 'LV', 56.9236, 23.9711], ['TLL', 'Tallinn Lennart Meri', 'Tallinn', 'EE', 59.4133, 24.8328], ['VNO', 'Vilnius', 'Viļņa', 'LT', 54.6341, 25.2858], ['HEL', 'Helsinki Vantaa', 'Helsinki', 'FI', 60.3172, 24.9633], ['ARN', 'Stockholm Arlanda', 'Stokholma', 'SE', 59.6519, 17.9186], ['CPH', 'Copenhagen Kastrup', 'Kopenhāgena', 'DK', 55.6181, 12.6560], ['OSL', 'Oslo Gardermoen', 'Oslo', 'NO', 60.1976, 11.1004], ['LHR', 'London Heathrow', 'Londona', 'GB', 51.4775, -0.4614], ['CDG', 'Paris Charles de Gaulle', 'Parīze', 'FR', 49.0097, 2.5479], ['AMS', 'Amsterdam Schiphol', 'Amsterdama', 'NL', 52.3086, 4.7639], ['FRA', 'Frankfurt', 'Frankfurte', 'DE', 50.0333, 8.5706], ['MUC', 'Munich', 'Minhene', 'DE', 48.3538, 11.7861], ['BER', 'Berlin Brandenburg', 'Berlīne', 'DE', 52.3667, 13.5033], ['ZRH', 'Zurich', 'Cīrihe', 'CH', 47.4647, 8.5492], ['VIE', 'Vienna', 'Vīne', 'AT', 48.1103, 16.5697], ['FCO', 'Rome Fiumicino', 'Roma', 'IT', 41.8003, 12.2389], ['BCN', 'Barcelona', 'Barselona', 'ES', 41.2974, 2.0833], ['MAD', 'Madrid Barajas', 'Madride', 'ES', 40.4936, -3.5669], ['LIS', 'Lisbon', 'Lisabona', 'PT', 38.7756, -9.1354], ['WAW', 'Warsaw Chopin', 'Varšava', 'PL', 52.1657, 20.9671], ['PRG', 'Prague', 'Prāga', 'CZ', 50.1008, 14.2600], ['BUD', 'Budapest', 'Budapešta', 'HU', 47.4369, 19.2556], ['ATH', 'Athens', 'Atēnas', 'GR', 37.9364, 23.9445], ['IST', 'Istanbul', 'Stambula', 'TR', 41.2753, 28.7519], ['JFK', 'New York JFK', 'Ņujorka', 'US', 40.6413, -73.7781], ['DXB', 'Dubai', 'Dubaja', 'AE', 25.2528, 55.3644], ['BKK', 'Bangkok Suvarnabhumi', 'Bangkoka', 'TH', 13.6900, 100.7501], ['SIN', 'Singapore Changi', 'Singapūra', 'SG', 1.3644, 103.9915], ['NRT', 'Tokyo Narita', 'Tokija', 'JP', 35.7647, 140.3864], ['SYD', 'Sydney Kingsford Smith', 'Sidneja', 'AU', -33.9399, 151.1753]
-    ];
+    // No static airport list – we use online search
+
     const THEMES = [{ id: 'white', label: 'Baltais', color: '#FFFFFF' }, { id: 'teal', label: 'Zaļais', color: '#1A5F58' }, { id: 'dark', label: 'Tumšais', color: '#0F172A' }];
     const DAY_COLORS = ['#1A5F58', '#2563EB', '#7C3AED', '#C2410C', '#0891B2', '#065F46', '#BE123C', '#854D0E', '#1D4ED8', '#6D28D9'];
 
@@ -1643,7 +1653,10 @@
         selTripColor = 1;
     let modalOpen = false;
     let draggedPlaceId = null;
-    let pushHistory = true;   // <-- FIX: missing global variable for navigation history
+    let pushHistory = true;
+    // airport cache for online lookups
+    let airportCache = new Map();
+
     const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const fd = d => { if (!d) return '';
@@ -1685,7 +1698,22 @@
     function gcTime(dist) { const h = Math.floor(dist / 900),
             m = Math.round((dist % 900) / 900 * 60); return m ? `~${h}h ${m}min` : `~${h}h`; }
 
-    function searchAirports(q) { q = q.trim().toUpperCase(); if (!q) return []; return AIRPORTS.filter(a => a[0].startsWith(q) || a[1].toUpperCase().includes(q) || a[2].toUpperCase().includes(q) || a[3] === q).slice(0, 8); }
+    async function searchAirportsOnline(q) {
+        q = q.trim().toUpperCase();
+        if (!q) return [];
+        if (airportCache.has(q)) return airportCache.get(q);
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}+airport&format=json&limit=5`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            const results = data.map(f => {
+                const name = f.display_name.split(',')[0];
+                return [q, name, f.display_name, '??', parseFloat(f.lat), parseFloat(f.lon)];
+            });
+            airportCache.set(q, results);
+            return results;
+        } catch(e) { return []; }
+    }
 
     function save() { try { localStorage.setItem('cp5_trips', JSON.stringify(S.trips));
             localStorage.setItem('cp5_places', JSON.stringify(S.places));
@@ -1756,7 +1784,8 @@
         places.forEach((p, i) => { const col = p.visited ? '#4ADE80' : '#1A5F58'; const icon = L.divIcon({ className: '', html: `<div style="background:${col};color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2.5px solid #fff;cursor:pointer">${i+1}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }); const m = L.marker([p.lat, p.lng], { icon }).addTo(LMAP);
             m.bindPopup(`<div class="lpop"><div class="lpop-name">${getPT(p.type).ico} ${esc(p.name)}</div>${p.address?`<div>📍 ${esc(p.address)}</div>`:''}<div class="lpop-btns"><button class="lpop-btn" style="background:var(--P);color:#fff" onclick="LMAP.closePopup();showPlaceModal('${p.id}')">✏️</button><button class="lpop-btn" style="background:${p.visited?'#F3F4F6':'#DCFCE7'};color:${p.visited?'#6B7280':'#166534'}" onclick="toggleV('${p.id}')">${p.visited?'Neatmeklēts':'✓'}</button></div></div>`, { maxWidth: 280 });
             L_MARKERS.push(m);
-            bounds.push([p.lat, p.lng]); }); if (places.length >= 2) { L_ROUTE_LAYERS.push(L.polyline(places.map(p => [p.lat, p.lng]), { color: '#1A5F58', weight: 2.5, opacity: .4, dashArray: '8,8' }).addTo(LMAP)); }
+            bounds.push([p.lat, p.lng]); });
+        // REMOVED: the green dashed line connecting places (no longer drawn)
         routes.forEach(r => { const pts = gcArc(r.fromLat, r.fromLng, r.toLat, r.toLng, 80);
             L_ARC_LAYERS.push(L.polyline(pts, { color: '#D4712E', weight: 2, opacity: .7, dashArray: '6,4' }).addTo(LMAP));
             bounds.push([r.fromLat, r.fromLng], [r.toLat, r.toLng]); const mid = pts[Math.floor(pts.length / 2)]; const dist = gcDist(r.fromLat, r.fromLng, r.toLat, r.toLng);
@@ -1814,12 +1843,13 @@
             h += `<div style="background:linear-gradient(135deg,var(--P),var(--A));border-radius:18px;padding:16px;color:#fff;margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">✈️</span><div><div style="font-weight:700">${r.fromIata}→${r.toIata} · Ceļā!</div><div style="font-size:12px;opacity:.8">${esc(r.fromName)} → ${esc(r.toName)}</div></div></div><div class="flight-progress-bar"><div class="flight-progress-fill" style="width:${pct}%"></div></div><div style="text-align:center;font-size:12px;opacity:.8">${Math.round(dist*pct/100)} km no ${dist} km</div></div>`; });
         el.innerHTML = h; }
 
+    // UPDATED: renderPlan now includes sortOrder for routes and drag/drop for all items
     function renderPlan(ctId, subId, desk) { const ct = document.getElementById(ctId); if (!ct) return; const sub = document.getElementById(subId); const trip = curT(); const nowWrapId = desk ? 'd-plans-now-wrap' : 'plans-now-wrap'; if (!trip) { if (sub) sub.textContent = 'Nav izvēlēts ceļojums';
             ct.innerHTML = emH('🗺️', 'Izvēlies vai pievieno ceļojumu');
             renderNowPanel(nowWrapId); return; } if (sub) sub.textContent = trip.name + (fdr(trip.startDate, trip.endDate) ? ' · ' + fdr(trip.startDate, trip.endDate) : '');
         renderNowPanel(nowWrapId); const pls = curPl(); const rts = curRts(); if (!pls.length && !rts.length) { ct.innerHTML = emH('📅', 'Vēl nav pievienotu vietu vai lidojumu', '<button class="btn bp bsm" onclick="showPlaceModal()">+ Vieta</button> <button class="btn bp bsm" onclick="showRouteModal()">✈️ Lidojums</button>'); return; } const items = [...pls.map(p => ({ ...p, _type: 'place' })), ...rts.map(r => ({ ...r, _type: 'route' }))];
         items.sort((a, b) => { if (a.date && b.date && a.date !== b.date) return a.date < b.date ? -1 : 1; const soA = a.sortOrder ?? 9999,
-                soB = b.sortOrder ?? 9999; if (soA !== soB && a._type === 'place' && b._type === 'place') return soA - soB; if (a.time && b.time) return a.time < b.time ? -1 : 1; return (a.cAt || 0) - (b.cAt || 0); }); const byD = {},
+                soB = b.sortOrder ?? 9999; if (soA !== soB) return soA - soB; if (a.time && b.time) return a.time < b.time ? -1 : 1; return (a.cAt || 0) - (b.cAt || 0); }); const byD = {},
             noD = [];
         items.forEach(it => { if (it.date) { if (!byD[it.date]) byD[it.date] = [];
                 byD[it.date].push(it); } else noD.push(it); }); let h = desk ? '<div class="plan-grid">' : ''; let day = 1; const { todayStr } = getNow(); let nowInserted = false; const sortedDates = Object.keys(byD).sort();
@@ -1827,51 +1857,72 @@
             h += `<div class="tlday"><div class="tldh"${isToday?' style="color:#EF4444"':''}>📅 ${lvmd(date)} · Diena ${day++}${isToday?' · ŠODIEN':''}</div>`;
             byD[date].forEach((it, i, arr) => { const st = itemStatus(it); if (isToday && !nowInserted && st === 'future') { nowInserted = true;
                     h += `<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`; }
-                h += `<div class="tli"><div class="tll"><div class="tldot ${st==='now'?'r':st==='past'?'v':it._type==='route'?'r':''}"></div>${!arr[i+1]?'':'<div class="tlline"></div>'}</div><div class="tlc">`; if (it._type === 'route') h += renderRouteCard(it, st); else h += renderPlaceCard(it, st);
+                h += `<div class="tli"><div class="tll"><div class="tldot ${st==='now'?'r':st==='past'?'v':it._type==='route'?'r':''}"></div>${!arr[i+1]?'':'<div class="tlline"></div>'}</div><div class="tlc">`; if (it._type === 'route') h += renderRouteCard(it, st, true); else h += renderPlaceCard(it, st);
                 h += '</div></div>'; }); if (isToday && !nowInserted) { h +=
                     `<div class="now-bar"><div class="now-line"></div><div class="now-pill"><div class="now-dot"></div>TAGAD</div><div class="now-line"></div></div>`; }
             h += '</div>'; }); if (noD.length) { h += '<div class="tlday"><div class="tldh">📌 Bez datuma</div>';
-            noD.forEach(it => { h += '<div class="tli"><div class="tll"><div class="tldot"></div></div><div class="tlc">'; if (it._type === 'route') h += renderRouteCard(it, 'future'); else h += renderPlaceCard(it, 'future');
+            noD.forEach(it => { h += '<div class="tli"><div class="tll"><div class="tldot"></div></div><div class="tlc">'; if (it._type === 'route') h += renderRouteCard(it, 'future', true); else h += renderPlaceCard(it, 'future');
                 h += '</div></div>'; });
             h += '</div>'; } if (desk) h += '</div>';
         ct.innerHTML = h;
-        setupDragAndDrop(ct); }
+        setupDragAndDropForAll(ct); }
 
-    function setupDragAndDrop(container) { container.querySelectorAll('.card.draggable-place').forEach(card => { card.addEventListener('dragstart', handleDragStart);
-            card.addEventListener('dragend', handleDragEnd);
-            card.addEventListener('dragover', e => { e.preventDefault();
-                card.classList.add('drag-over'); });
-            card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-            card.addEventListener('drop', handleDrop); });
-        container.querySelectorAll('.drag-handle').forEach(handle => { handle.addEventListener('mousedown', () => { const card = handle.closest('.card.draggable-place'); if (card) card.draggable = true; });
-            handle.addEventListener('mouseup', () => { const card = handle.closest('.card.draggable-place'); if (card) card.draggable = false; }); }); }
+    function setupDragAndDropForAll(container) {
+        // Make all cards (both .card and .route-card) draggable
+        const draggables = container.querySelectorAll('.card.draggable-place, .route-card');
+        draggables.forEach(el => {
+            el.setAttribute('draggable', 'true');
+            el.addEventListener('dragstart', handleDragStartGeneric);
+            el.addEventListener('dragend', handleDragEndGeneric);
+            el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+            el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+            el.addEventListener('drop', handleDropGeneric);
+        });
+    }
 
-    function handleDragStart(e) { const card = e.target.closest('.card.draggable-place'); if (!card) return;
-        draggedPlaceId = card.dataset.placeId;
+    let draggedItemId = null, draggedItemType = null;
+    function handleDragStartGeneric(e) {
+        const card = e.target.closest('.card.draggable-place, .route-card');
+        if (!card) return;
+        draggedItemId = card.dataset.id;
+        draggedItemType = card.classList.contains('route-card') ? 'route' : 'place';
         card.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', draggedPlaceId); }
-
-    function handleDragEnd(e) { const card = e.target.closest('.card.draggable-place'); if (card) card.classList.remove('dragging');
-        document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
-        draggedPlaceId = null; }
-
-    function handleDrop(e) { e.preventDefault(); const targetCard = e.target.closest('.card.draggable-place'); if (!targetCard || !draggedPlaceId || draggedPlaceId === targetCard.dataset.placeId) return;
-        targetCard.classList.remove('drag-over'); const srcPlace = S.places.find(p => p.id === draggedPlaceId); const tgtPlace = S.places.find(p => p.id === targetCard.dataset.placeId); if (!srcPlace || !tgtPlace || srcPlace.date !== tgtPlace.date) return; const placesOnDate = S.places.filter(p => p.tripId === S.tripId && p.date === srcPlace.date).sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)); const srcIdx = placesOnDate.findIndex(p => p.id === srcPlace.id); const tgtIdx = placesOnDate.findIndex(p => p.id === tgtPlace.id); if (srcIdx === -1 || tgtIdx === -1) return;
-        placesOnDate.splice(srcIdx, 1);
-        placesOnDate.splice(tgtIdx, 0, srcPlace);
-        placesOnDate.forEach((p, i) => { p.sortOrder = i; });
-        save(); if (S.tab === 'plans') { if (S.isDesk) renderPlan('d-plans-ct', 'd-plans-sub', true); else renderPlan('plans-ct', 'plans-sub', false); } }
-
-    function movePlaceUp(placeId) { const place = S.places.find(p => p.id === placeId); if (!place) return; const placesOnDate = S.places.filter(p => p.tripId === S.tripId && p.date === place.date).sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)); const idx = placesOnDate.findIndex(p => p.id === placeId); if (idx <= 0) return;
-        [placesOnDate[idx - 1], placesOnDate[idx]] = [placesOnDate[idx], placesOnDate[idx - 1]];
-        placesOnDate.forEach((p, i) => { p.sortOrder = i; });
-        save(); if (S.tab === 'plans') { if (S.isDesk) renderPlan('d-plans-ct', 'd-plans-sub', true); else renderPlan('plans-ct', 'plans-sub', false); } }
-
-    function movePlaceDown(placeId) { const place = S.places.find(p => p.id === placeId); if (!place) return; const placesOnDate = S.places.filter(p => p.tripId === S.tripId && p.date === place.date).sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)); const idx = placesOnDate.findIndex(p => p.id === placeId); if (idx === -1 || idx >= placesOnDate.length - 1) return;
-        [placesOnDate[idx], placesOnDate[idx + 1]] = [placesOnDate[idx + 1], placesOnDate[idx]];
-        placesOnDate.forEach((p, i) => { p.sortOrder = i; });
-        save(); if (S.tab === 'plans') { if (S.isDesk) renderPlan('d-plans-ct', 'd-plans-sub', true); else renderPlan('plans-ct', 'plans-sub', false); } }
+        e.dataTransfer.setData('text/plain', JSON.stringify({ id: draggedItemId, type: draggedItemType }));
+    }
+    function handleDragEndGeneric(e) {
+        const card = e.target.closest('.card.draggable-place, .route-card');
+        if (card) card.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        draggedItemId = null;
+    }
+    function handleDropGeneric(e) {
+        e.preventDefault();
+        const targetCard = e.target.closest('.card.draggable-place, .route-card');
+        if (!targetCard || !draggedItemId) return;
+        targetCard.classList.remove('drag-over');
+        const targetId = targetCard.dataset.id;
+        const targetType = targetCard.classList.contains('route-card') ? 'route' : 'place';
+        if (draggedItemId === targetId) return;
+        // only allow reorder if same date and same type? For simplicity allow same date only
+        const srcItem = draggedItemType === 'place' ? S.places.find(p => p.id === draggedItemId) : S.routes.find(r => r.id === draggedItemId);
+        const tgtItem = targetType === 'place' ? S.places.find(p => p.id === targetId) : S.routes.find(r => r.id === targetId);
+        if (!srcItem || !tgtItem || srcItem.date !== tgtItem.date) return;
+        const allItemsOnDate = [...S.places.filter(p => p.tripId === S.tripId && p.date === srcItem.date).map(p => ({ ...p, _type: 'place' })),
+                                 ...S.routes.filter(r => r.tripId === S.tripId && r.date === srcItem.date).map(r => ({ ...r, _type: 'route' }))];
+        allItemsOnDate.sort((a,b) => (a.sortOrder??9999) - (b.sortOrder??9999));
+        const srcIdx = allItemsOnDate.findIndex(i => i.id === srcItem.id);
+        const tgtIdx = allItemsOnDate.findIndex(i => i.id === tgtItem.id);
+        if (srcIdx === -1 || tgtIdx === -1) return;
+        const [moved] = allItemsOnDate.splice(srcIdx, 1);
+        allItemsOnDate.splice(tgtIdx, 0, moved);
+        allItemsOnDate.forEach((it, idx) => {
+            if (it._type === 'place') { const p = S.places.find(x => x.id === it.id); if(p) p.sortOrder = idx; }
+            else { const r = S.routes.find(x => x.id === it.id); if(r) r.sortOrder = idx; }
+        });
+        save();
+        if (S.tab === 'plans') { if (S.isDesk) renderPlan('d-plans-ct', 'd-plans-sub', true); else renderPlan('plans-ct', 'plans-sub', false); }
+    }
 
     function renderPlaceCard(p, status) {
         const pt = getPT(p.type);
@@ -1885,7 +1936,7 @@
             muzejs:'#DB2777',pludmale:'#0891B2',iepirkumi:'#7C3AED',spa:'#0891B2',other:'#64748B'
         };
         const col = typeColors[p.type] || '#1A5F58';
-        return `<div class="card draggable-place" data-place-id="${p.id}" draggable="true" ondragstart="onPlaceDragStart(event,'${p.id}')" ondragover="onPlaceDragOver(event,'${p.id}')" ondragleave="onPlaceDragLeave(event)" ondrop="onPlaceDrop(event,'${p.id}')" ondragend="onPlaceDragEnd(event)" style="margin-bottom:6px;opacity:${isPast?'.65':'1'};border-left:3px solid ${col}">
+        return `<div class="card draggable-place" data-id="${p.id}" data-type="place" style="margin-bottom:6px;opacity:${isPast?'.65':'1'};border-left:3px solid ${col}">
           <div class="crow">
             <div class="drag-handle" title="Vilkt, lai pārkārtotu" style="cursor:grab">⋮⋮</div>
             <div style="display:flex;gap:8px;align-items:flex-start;flex:1;min-width:0">
@@ -1914,7 +1965,7 @@
         </div>`;
     }
 
-    function renderRouteCard(r, status) { const dist = gcDist(r.fromLat, r.fromLng, r.toLat, r.toLng); const isNow = status === 'now'; const pct = isNow ? flightProgress(r) : null; return `<div class="route-card" draggable="true" ondragstart="dragItem(event,'route',''+r.id+'')" style="margin-bottom:8px;opacity:${status==='past'?'.7':'1'}"><div class="crow"><div style="flex:1"><div class="route-from-to"><span class="route-iata">${r.fromIata||'?'}</span><span>✈️</span><span class="route-iata">${r.toIata||'?'}</span>${isNow?'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px">● Ceļā</span>':''}</div><div class="route-meta">${r.flightNumber?`<span>✈️ ${esc(r.flightNumber)}</span>`:''}${r.date?`<span>📅 ${fd(r.date)}</span>`:''}<span>🕐 ${gcTime(dist)}</span></div><div>${dist.toLocaleString()} km</div></div><div class="cacts" style="flex-direction:column"><button class="ibt" style="background:rgba(255,255,255,.2);color:#fff" onclick="showRouteModal('${r.id}')">✏️</button><button class="ibt del" style="background:rgba(255,255,255,.15);color:#fff" onclick="delRoute('${r.id}')">🗑️</button></div></div></div>`; }
+    function renderRouteCard(r, status, draggable = true) { const dist = gcDist(r.fromLat, r.fromLng, r.toLat, r.toLng); const isNow = status === 'now'; const pct = isNow ? flightProgress(r) : null; const dragAttr = draggable ? `draggable="true" data-id="${r.id}" data-type="route"` : ''; return `<div class="route-card" ${dragAttr} style="margin-bottom:8px;opacity:${status==='past'?'.7':'1'}"><div class="crow"><div style="flex:1"><div class="route-from-to"><span class="route-iata">${r.fromIata||'?'}</span><span>✈️</span><span class="route-iata">${r.toIata||'?'}</span>${isNow?'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px">● Ceļā</span>':''}</div><div class="route-meta">${r.flightNumber?`<span>✈️ ${esc(r.flightNumber)}</span>`:''}${r.date?`<span>📅 ${fd(r.date)}</span>`:''}<span>🕐 ${gcTime(dist)}</span></div><div>${dist.toLocaleString()} km</div></div><div class="cacts" style="flex-direction:column"><button class="ibt" style="background:rgba(255,255,255,.2);color:#fff" onclick="showRouteModal('${r.id}')">✏️</button><button class="ibt del" style="background:rgba(255,255,255,.15);color:#fff" onclick="delRoute('${r.id}')">🗑️</button></div></div></div>`; }
 
     function renderDocs(ctId, filtId, desk) { const ct = document.getElementById(ctId); if (!ct) return; const flt = document.getElementById(filtId); const trip = curT(); if (!trip) { if (flt) flt.innerHTML = '';
             ct.innerHTML = emH('📄', 'Nav izvēlēts ceļojums'); return; } const docs = curDocs(); const used = new Set(docs.map(d => d.type)); if (flt) flt.innerHTML = [{ id: 'all', lbl: 'Visi', ico: '🗂️' }, ...DT.filter(t => used.has(t.id))].map(f => `<button class="fpill${S.docFilter===f.id?' on':''}" onclick="setDF('${f.id}')">${f.ico} ${f.lbl}</button>`).join(''); const filtered = S.docFilter === 'all' ? docs : docs.filter(d => d.type === S.docFilter); if (!filtered.length) { ct.innerHTML = emH('🎫', 'Vēl nav dokumentu', '<button class="btn ba bsm" onclick="showDocModal()">+ Pievienot</button>'); return; }
@@ -1943,18 +1994,18 @@
     function renderBoardingPass(d) {
         const im = (d.title||'').match(/([A-Z]{3})\s*[-–→]\s*([A-Z]{3})/);
         const fIata = im?im[1]:(d.fromIata||'???'), tIata = im?im[2]:(d.toIata||'???');
-        const fAp = AIRPORTS.find(a=>a[0]===fIata), tAp = AIRPORTS.find(a=>a[0]===tIata);
-        const dist = (fAp&&tAp)?gcDist(fAp[4],fAp[5],tAp[4],tAp[5]):null;
-        const dur = dist?gcTime(dist):null;
+        // No local airport data – just show IATA
+        const dist = null; // distance not shown without coordinates
+        const dur = null;
         return `<div class="bp-card" style="background:var(--sur);border-radius:18px;overflow:hidden;margin-bottom:12px;box-shadow:0 3px 16px rgba(0,0,0,.1);border:1px solid var(--br);position:relative">
           <div style="background:linear-gradient(135deg,var(--P),#2A9D8F);padding:12px 16px 10px;display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.8px">${esc(d.provider||'Aviokompānija')}</div>
             <div style="font-size:10px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.15);padding:2px 8px;border-radius:20px">Iekāpšanas karte</div>
           </div>
           <div style="padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div style="text-align:center;flex:1"><div style="font-size:36px;font-weight:700;letter-spacing:-1px;color:var(--tx);line-height:1">${fIata}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">${fAp?fAp[2]:fIata}</div></div>
-            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-size:20px;color:var(--P)">✈</div><div style="width:70px;height:1.5px;background:linear-gradient(90deg,var(--br),var(--P),var(--br))"></div>${dur?`<div style="font-size:10px;color:var(--mu)">${dur}</div>`:''}</div>
-            <div style="text-align:center;flex:1"><div style="font-size:36px;font-weight:700;letter-spacing:-1px;color:var(--tx);line-height:1">${tIata}</div><div style="font-size:11px;color:var(--mu);margin-top:2px">${tAp?tAp[2]:tIata}</div></div>
+            <div style="text-align:center;flex:1"><div style="font-size:36px;font-weight:700;letter-spacing:-1px;color:var(--tx);line-height:1">${fIata}</div><div style="font-size:11px;color:var(--mu);margin-top:2px"></div></div>
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="font-size:20px;color:var(--P)">✈</div><div style="width:70px;height:1.5px;background:linear-gradient(90deg,var(--br),var(--P),var(--br))"></div></div>
+            <div style="text-align:center;flex:1"><div style="font-size:36px;font-weight:700;letter-spacing:-1px;color:var(--tx);line-height:1">${tIata}</div><div style="font-size:11px;color:var(--mu);margin-top:2px"></div></div>
           </div>
           <div style="margin:12px 0 0;padding:0 12px;display:flex;align-items:center"><div style="width:20px;height:20px;border-radius:50%;background:var(--bg);flex-shrink:0;margin:0 -10px;z-index:2;border:1px solid var(--br)"></div><div style="flex:1;border-top:2px dashed var(--br)"></div><div style="width:20px;height:20px;border-radius:50%;background:var(--bg);flex-shrink:0;margin:0 -10px;z-index:2;border:1px solid var(--br)"></div></div>
           <div style="padding:10px 16px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 6px">
@@ -1968,7 +2019,6 @@
           </div>
           <div style="background:var(--bg);border-top:1px solid var(--br);padding:8px 16px;display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Apstiprinājuma Nr.</div><div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--P)">${esc(d.confirmationNumber||'—')}</div></div>
-            ${dist?`<div style="text-align:right"><div style="font-size:9px;color:var(--mu)">Attālums</div><div style="font-size:12px;font-weight:600;color:var(--tx)">${dist.toLocaleString()} km</div></div>`:''}
           </div>
           <div style="padding:0 16px 14px;display:flex;gap:6px;margin-top:10px">
             <button class="btn bp bsm" onclick="showDocModal('${d.id}')" style="flex:1">✏️ Rediģēt</button>
@@ -1982,7 +2032,7 @@
         ct.innerHTML = S.trips.map(t => { const pc = S.places.filter(p => p.tripId === t.id).length; const dc = S.docs.filter(d => d.tripId === t.id).length; const rc = S.routes.filter(r => r.tripId === t.id).length; const days = dbw(t.startDate, t.endDate); return `<div class="tcard" onclick="selTrip('${t.id}')"><div class="tch ${grdC(t.color)}"><div class="tcn">${esc(t.name)}</div><div class="tcd">📍 ${esc(t.destination||'')}</div><div class="tcdt">${fdr(t.startDate,t.endDate)}${days?' · '+days+' dienas':''}</div></div><div class="tcb"><div class="tcst"><div><div class="tcsn">${pc}</div><div class="tcsl">Vietas</div></div><div><div class="tcsn">${rc}</div><div class="tcsl">Lidoj.</div></div><div><div class="tcsn">${dc}</div><div class="tcsl">Dok.</div></div></div><div><button class="btn bg2 bsm" onclick="event.stopPropagation();showTripModal('${t.id}')">✏️</button><button class="btn bd bsm" onclick="event.stopPropagation();delTrip('${t.id}')">🗑️</button></div></div></div>`; }).join(''); }
 
     function renderSet(id) { const el = document.getElementById(id); if (!el) return;
-        el.innerHTML = `<h2 class="sh">Iestatījumi</h2><p class="ss">Izskata, kartes un datu pārvaldība</p>${setS('app','🎨 Izskats','<div class="sec-lbl">Krāsu tēma</div><div class="theme-grid">'+THEMES.map(t=>`<div class="tsw${S.theme===t.id?' on':''}" style="background:${t.color}" onclick="applyTheme(\'${t.id}\')"><span class="tsw-check">${S.theme===t.id?'✓':''}</span></div>`).join('')+'</div><div style="font-size:11px;color:var(--mu);margin:4px 0 12px">'+THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')+'</div><div class="sec-lbl">Fonta stils</div><div class="font-row"><button class="fntbtn'+(S.font==='app'?' on':'')+'" id="fnt-app" onclick="applyFont(\'app\')">Lietotnes fonts</button><button class="fntbtn'+(S.font==='system'?' on':'')+'" id="fnt-system" onclick="applyFont(\'system\')">Sistēmas fonts</button></div><div style="margin-top:14px"><div class="sec-lbl">Teksta izmērs</div><div class="fs-btn-row"><button class="fs-btn" onclick="changeFontSize(-0.1)">A−</button><div class="fs-preview" id="fs-preview-lbl">'+Math.round((S.fontSize||1)*100)+'%</div><button class="fs-btn" onclick="changeFontSize(0.1)">A+</button><button class="fs-btn" onclick="resetFontSize()">↺</button></div></div>')}${setS('map','🗺️ Kartes sistēma','<div class="sec-lbl">Kartes slānis</div><div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+Object.entries(TILE_LAYERS).map(([k,v])=>`<button class="btn bg2 bsm tile-opt${S.tileLayer===k?' on':''}" id="tile-${k}" onclick="switchTileLayer(\'${k}\')" style="justify-content:flex-start">${S.tileLayer===k?'✓ ':''}${v.name}</button>`).join('')+'</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab(\'map\');fitAll()">🎯 Atiestatīt skatu</button>')}${setS('sync','☁️ Google Sheets Sinhronizācija','<div class="fg"><label class="fl">Apps Script URL</label><input class="inp" type="url" value="'+esc(S.syncUrl)+'" oninput="S.syncUrl=this.value;localStorage.setItem(\'cp5_syncUrl\',this.value)"></div><div style="display:flex;gap:8px"><button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt</button><button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt</button></div>')}${setS('asc','📋 Apps Script Kods','<p style="font-size:12px;color:var(--mu);margin-bottom:10px">script.google.com → Jauns projekts → Ielīmē kodu → Execute as: Me · Access: Anyone</p><div id="asc-c" style="background:#1E293B;color:#7DD3FC;border-radius:14px;padding:14px 16px;font-size:11px;font-family:monospace;overflow:auto;max-height:200px;white-space:pre;line-height:1.6;margin:8px 0">function doGet(e){var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var v=sh.getRange(\'A1\').getValue();var d=v?JSON.parse(v):{trips:[],places:[],docs:[],routes:[]};return ContentService.createTextOutput(JSON.stringify({ok:true,data:d})).setMimeType(ContentService.MimeType.JSON);}function doPost(e){try{var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var p=JSON.parse(e.postData.contents);if(p.action===\'save\'){sh.getRange(\'A1\').setValue(JSON.stringify(p.data));return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);}}catch(err){return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);}}</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>')}${setS('dt','💾 Lokālie dati','<div style="display:flex;flex-direction:column;gap:8px"><button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON</button><label class="btn bg2 bsm" style="cursor:pointer;justify-content:center">📤 Importēt JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label><button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button></div>')}<div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">Ceļojuma Plānotājs · OpenStreetMap</div><div style="text-align:center;padding:20px 0 4px;color:var(--mu);font-size:11px">Ceļojuma Plānotājs <b style="color:var(--P)">v4.0</b></div>`; }
+        el.innerHTML = `<h2 class="sh">Iestatījumi</h2><p class="ss">Izskata, kartes un datu pārvaldība</p>${setS('app','🎨 Izskats','<div class="sec-lbl">Krāsu tēma</div><div class="theme-grid">'+THEMES.map(t=>`<div class="tsw${S.theme===t.id?' on':''}" style="background:${t.color}" onclick="applyTheme(\'${t.id}\')"><span class="tsw-check">${S.theme===t.id?'✓':''}</span></div>`).join('')+'</div><div style="font-size:11px;color:var(--mu);margin:4px 0 12px">'+THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')+'</div><div class="sec-lbl">Fonta stils</div><div class="font-row"><button class="fntbtn'+(S.font==='app'?' on':'')+'" id="fnt-app" onclick="applyFont(\'app\')">Lietotnes fonts</button><button class="fntbtn'+(S.font==='system'?' on':'')+'" id="fnt-system" onclick="applyFont(\'system\')">Sistēmas fonts</button></div><div style="margin-top:14px"><div class="sec-lbl">Teksta izmērs</div><div class="fs-btn-row"><button class="fs-btn" onclick="changeFontSize(-0.1)">A−</button><div class="fs-preview" id="fs-preview-lbl">'+Math.round((S.fontSize||1)*100)+'%</div><button class="fs-btn" onclick="changeFontSize(0.1)">A+</button><button class="fs-btn" onclick="resetFontSize()">↺</button></div></div>')}${setS('map','🗺️ Kartes sistēma','<div class="sec-lbl">Kartes slānis</div><div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+Object.entries(TILE_LAYERS).map(([k,v])=>`<button class="btn bg2 bsm tile-opt${S.tileLayer===k?' on':''}" id="tile-${k}" onclick="switchTileLayer(\'${k}\')" style="justify-content:flex-start">${S.tileLayer===k?'✓ ':''}${v.name}</button>`).join('')+'</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab(\'map\');fitAll()">🎯 Atiestatīt skatu</button>')}${setS('sync','☁️ Google Sheets Sinhronizācija','<div class="fg"><label class="fl">Apps Script URL</label><input class="inp" type="url" value="'+esc(S.syncUrl)+'" oninput="S.syncUrl=this.value;localStorage.setItem(\'cp5_syncUrl\',this.value)"></div><div style="display:flex;gap:8px"><button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt</button><button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt</button></div>')}${setS('asc','📋 Apps Script Kods','<p style="font-size:12px;color:var(--mu);margin-bottom:10px">script.google.com → Jauns projekts → Ielīmē kodu → Execute as: Me · Access: Anyone</p><div id="asc-c" style="background:#1E293B;color:#7DD3FC;border-radius:14px;padding:14px 16px;font-size:11px;font-family:monospace;overflow:auto;max-height:200px;white-space:pre;line-height:1.6;margin:8px 0">function doGet(e){var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var v=sh.getRange(\'A1\').getValue();var d=v?JSON.parse(v):{trips:[],places:[],docs:[],routes:[]};return ContentService.createTextOutput(JSON.stringify({ok:true,data:d})).setMimeType(ContentService.MimeType.JSON);}function doPost(e){try{var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var p=JSON.parse(e.postData.contents);if(p.action===\'save\'){sh.getRange(\'A1\').setValue(JSON.stringify(p.data));return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);}}catch(err){return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);}}</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>')}${setS('dt','💾 Lokālie dati','<div style="display:flex;flex-direction:column;gap:8px"><button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON</button><label class="btn bg2 bsm" style="cursor:pointer;justify-content:center">📤 Importēt JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label><button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button></div>')}<div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">Ceļojuma Plānotājs · OpenStreetMap</div><div style="text-align:center;padding:20px 0 4px;color:var(--mu);font-size:11px">Ceļojuma Plānotājs <b style="color:var(--P)">v4.1</b></div>`; }
 
     function setS(id, title, body) { return `<div class="sset"><div class="sseth" onclick="togSet('${id}')"><span>${title}</span><svg id="sc-${id}" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg></div><div id="sb-${id}" style="display:none" class="ssetb">${body}</div></div>`; }
 
@@ -2045,13 +2095,16 @@
         save(); if (S.tab === 'map') renderMap(); else if (S.tab === 'plans') { if (S.isDesk) renderPlan('d-plans-ct', 'd-plans-sub', true); else renderPlan('plans-ct', 'plans-sub', false); } }
 
     function showRouteModal(editId) { if (!S.tripId) { notif('Vispirms izvēlies ceļojumu!', 'err'); return; } const r = editId ? S.routes.find(x => x.id === editId) : null;
-        modal(r ? 'Rediģēt lidojumu' : 'Pievienot lidojumu ✈️', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="fl">Izlidošana *</label><input class="inp" id="r-from-q" value="${r?r.fromIata||'':''}" placeholder="RIX" oninput="apSearch('from',this.value)"><div class="ap-res" id="ap-from"></div><input type="hidden" id="r-flat" value="${r?r.fromLat||'':''}"><input type="hidden" id="r-flng" value="${r?r.fromLng||'':''}"><input type="hidden" id="r-fiata" value="${r?r.fromIata||'':''}"><input type="hidden" id="r-fname" value="${r?r.fromName||'':''}"></div><div><label class="fl">Ielidošana *</label><input class="inp" id="r-to-q" value="${r?r.toIata||'':''}" placeholder="CDG" oninput="apSearch('to',this.value)"><div class="ap-res" id="ap-to"></div><input type="hidden" id="r-tlat" value="${r?r.toLat||'':''}"><input type="hidden" id="r-tlng" value="${r?r.toLng||'':''}"><input type="hidden" id="r-tiata" value="${r?r.toIata||'':''}"><input type="hidden" id="r-tname" value="${r?r.toName||'':''}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="fl">Datums</label><input class="inp" type="date" id="r-date" value="${r?r.date||'':''}"></div><div><label class="fl">Reisa nr.</label><input class="inp" id="r-fn" value="${esc(r?r.flightNumber||'':'')}"></div></div><div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn bp" onclick="saveRoute('${editId||''}')">${r?'Saglabāt':'Pievienot'}</button></div>`);
+        modal(r ? 'Rediģēt lidojumu' : 'Pievienot lidojumu ✈️', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="fl">Izlidošana *</label><input class="inp" id="r-from-q" value="${r?r.fromIata||'':''}" placeholder="RIX" oninput="apSearchOnline('from',this.value)"><div class="ap-res" id="ap-from"></div><input type="hidden" id="r-flat" value="${r?r.fromLat||'':''}"><input type="hidden" id="r-flng" value="${r?r.fromLng||'':''}"><input type="hidden" id="r-fiata" value="${r?r.fromIata||'':''}"><input type="hidden" id="r-fname" value="${r?r.fromName||'':''}"></div><div><label class="fl">Ielidošana *</label><input class="inp" id="r-to-q" value="${r?r.toIata||'':''}" placeholder="CDG" oninput="apSearchOnline('to',this.value)"><div class="ap-res" id="ap-to"></div><input type="hidden" id="r-tlat" value="${r?r.toLat||'':''}"><input type="hidden" id="r-tlng" value="${r?r.toLng||'':''}"><input type="hidden" id="r-tiata" value="${r?r.toIata||'':''}"><input type="hidden" id="r-tname" value="${r?r.toName||'':''}"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="fl">Datums</label><input class="inp" type="date" id="r-date" value="${r?r.date||'':''}"></div><div><label class="fl">Reisa nr.</label><input class="inp" id="r-fn" value="${esc(r?r.flightNumber||'':'')}"></div></div><div class="macts"><button class="btn bg2" onclick="closeModal()">Atcelt</button><button class="btn bp" onclick="saveRoute('${editId||''}')">${r?'Saglabāt':'Pievienot'}</button></div>`);
         setTimeout(() => document.getElementById('r-from-q')?.focus(), 80); }
 
-    function apSearch(side, q) { const resEl = document.getElementById('ap-' + side); const results = searchAirports(q); if (!results.length || !q.trim()) { resEl.classList.remove('show');
-            resEl.innerHTML = ''; return; }
-        resEl.innerHTML = results.map(a => `<div class="ap-it" onclick="pickAp('${side}','${a[0]}','${esc(a[1])}',${a[4]},${a[5]})"><span class="ap-iata">${a[0]}</span>${esc(a[1])} ${a[2]}, ${a[3]}</div>`).join('');
-        resEl.classList.add('show'); }
+    async function apSearchOnline(side, q) { const resEl = document.getElementById('ap-' + side);
+        if (!q.trim()) { resEl.classList.remove('show'); resEl.innerHTML = ''; return; }
+        resEl.innerHTML = '<div class="spin"></div>'; resEl.classList.add('show');
+        const results = await searchAirportsOnline(q);
+        if (!results.length) { resEl.innerHTML = 'Nav atrasts'; return; }
+        resEl.innerHTML = results.map(a => `<div class="ap-it" onclick="pickAp('${side}','${a[0]}','${esc(a[1])}',${a[4]},${a[5]})"><span class="ap-iata">${a[0]}</span>${esc(a[1])} ${a[2]}</div>`).join('');
+    }
 
     function pickAp(side, iata, name, lat, lng) { const s = side === 'from' ? 'f' : 't';
         document.getElementById(`r-${s}lat`).value = lat;
@@ -2061,7 +2114,7 @@
         document.getElementById(`r-${side}-q`).value = iata;
         document.getElementById('ap-' + side).classList.remove('show'); }
 
-    function saveRoute(editId) { const flat = parseFloat(document.getElementById('r-flat').value); const flng = parseFloat(document.getElementById('r-flng').value); const tlat = parseFloat(document.getElementById('r-tlat').value); const tlng = parseFloat(document.getElementById('r-tlng').value); if (!flat || !tlat) { notif('Izvēlies abas lidostas!', 'err'); return; } const data = { tripId: S.tripId, fromLat: flat, fromLng: flng, fromIata: document.getElementById('r-fiata').value, fromName: document.getElementById('r-fname').value, toLat: tlat, toLng: tlng, toIata: document.getElementById('r-tiata').value, toName: document.getElementById('r-tname').value, date: document.getElementById('r-date').value, flightNumber: (document.getElementById('r-fn').value || '').trim() }; if (editId) { const r = S.routes.find(x => x.id === editId); if (r) Object.assign(r, data);
+    function saveRoute(editId) { const flat = parseFloat(document.getElementById('r-flat').value); const flng = parseFloat(document.getElementById('r-flng').value); const tlat = parseFloat(document.getElementById('r-tlat').value); const tlng = parseFloat(document.getElementById('r-tlng').value); if (!flat || !tlat) { notif('Izvēlies abas lidostas!', 'err'); return; } const data = { tripId: S.tripId, fromLat: flat, fromLng: flng, fromIata: document.getElementById('r-fiata').value, fromName: document.getElementById('r-fname').value, toLat: tlat, toLng: tlng, toIata: document.getElementById('r-tiata').value, toName: document.getElementById('r-tname').value, date: document.getElementById('r-date').value, flightNumber: (document.getElementById('r-fn').value || '').trim(), sortOrder: editId ? (S.routes.find(x=>x.id===editId)?.sortOrder??0) : Date.now() }; if (editId) { const r = S.routes.find(x => x.id === editId); if (r) Object.assign(r, data);
             notif('Lidojums atjaunināts!', 'ok'); } else { S.routes.push({ id: uid(), ...data, cAt: Date.now() });
             notif('Lidojums pievienots! ✈️', 'ok'); }
         save();
@@ -2139,7 +2192,7 @@
         save();
         renderAll(); }
 
-    function revGeo(lat, lng, cb) { fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { headers: { 'User-Agent': 'CelojumaPlānotājs/3.6' } }).then(r => r.json()).then(d => cb(d.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`)).catch(() => cb(`${lat.toFixed(5)}, ${lng.toFixed(5)}`)); }
+    function revGeo(lat, lng, cb) { fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { headers: { 'User-Agent': 'CelojumaPlānotājs/4.1' } }).then(r => r.json()).then(d => cb(d.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`)).catch(() => cb(`${lat.toFixed(5)}, ${lng.toFixed(5)}`)); }
 
     function setupSearch() { const i = document.getElementById('ms-inp');
         i.addEventListener('input', () => { const q = i.value.trim();
@@ -2220,15 +2273,11 @@
         par.appendChild(mw);
         mw.style.cssText = 'display:block;position:absolute;inset:0;'; }
 
-    // Navigation stack for back button
     const _navStack = [];
-    function _navPush(tab) {
-        if (_navStack[_navStack.length-1] !== tab) _navStack.push(tab);
-        history.pushState({ navTab: tab }, '', location.href);
-    }
+    function _navPush(tab) { if (_navStack[_navStack.length-1] !== tab) _navStack.push(tab);
+        history.pushState({ navTab: tab }, '', location.href); }
 
-    function switchTab(tab) {
-        if (pushHistory) _navPush(tab); S.tab = tab; if (S.isDesk) { document.querySelectorAll('[id^="dp-"]').forEach(p => p.classList.remove('on'));
+    function switchTab(tab) { if (pushHistory) _navPush(tab); S.tab = tab; if (S.isDesk) { document.querySelectorAll('[id^="dp-"]').forEach(p => p.classList.remove('on'));
             document.querySelectorAll('.sn').forEach(b => b.classList.remove('on')); const dp = document.getElementById('dp-' + tab); if (dp) dp.classList.add('on'); const sn = document.getElementById('sn-' + tab); if (sn) sn.classList.add('on'); if (tab === 'map') { ensureMapIn('dp-map');
                 setTimeout(() => { if (LMAP) LMAP.invalidateSize(); }, 80);
                 renderMap(); } else if (tab === 'plans') renderPlan('d-plans-ct', 'd-plans-sub', true); else if (tab === 'docs') renderDocs('d-docs-ct', 'd-doc-filt', true); else if (tab === 'trips') renderTrips('d-trips-ct'); else if (tab === 'set') renderSet('d-set-ct'); } else { document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
@@ -2282,7 +2331,7 @@
         const R = S.routes.filter(r=>r.tripId===trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
         const D = S.docs.filter(d=>d.tripId===trip.id);
 
-        // Canvas renderer — needed for Latvian Unicode chars
+        // Canvas renderer — fixed text overlap
         const cv=document.createElement('canvas'), ctx=cv.getContext('2d');
         function addTxt(text, x, yy, opts={}) {
             if (!text && text!==0) return 0;
@@ -2292,8 +2341,6 @@
             const ff = (bold?'bold ':'')+fPx+'px "DM Sans",Arial,sans-serif';
             ctx.font = ff;
             const measW = ctx.measureText(str).width;
-
-            // Word wrap if maxW set
             if (maxW && measW/3.779528 > maxW) {
                 const words = str.split(' ');
                 let line='', totalH=0, lineH=size*0.52;
@@ -2308,7 +2355,6 @@
                 if (line) totalH += addTxt(line, x, yy+totalH, {...opts, maxW:null});
                 return totalH + lineH*0.2;
             }
-
             const wPx = Math.ceil(measW)+4, hPx = Math.ceil(fPx*1.5)+4;
             cv.width = Math.max(wPx,4); cv.height = Math.max(hPx,4);
             ctx.clearRect(0,0,cv.width,cv.height);
@@ -2321,18 +2367,10 @@
         }
         function newPage() { doc.addPage(); y=0; }
         function chk(need=14) { if (y+need>284) newPage(); }
-        function hLine(col=[220,228,226]) {
-            doc.setDrawColor(...col); doc.setLineWidth(0.3);
-            doc.line(ML, y, MR, y);
-        }
-        function secHdr(title) {
-            chk(14); y+=3;
-            doc.setFillColor(26,95,88); doc.roundedRect(ML,y,TW,8,1.5,1.5,'F');
-            addTxt(title, ML+3, y+0.8, {size:10, bold:true, color:'#ffffff'});
-            y+=11;
-        }
+        function hLine(col=[220,228,226]) { doc.setDrawColor(...col); doc.setLineWidth(0.3); doc.line(ML, y, MR, y); }
+        function secHdr(title) { chk(14); y+=3; doc.setFillColor(26,95,88); doc.roundedRect(ML,y,TW,8,1.5,1.5,'F'); addTxt(title, ML+3, y+0.8, {size:10, bold:true, color:'#ffffff'}); y+=11; }
 
-        // ── COVER ──
+        // COVER
         doc.setFillColor(26,95,88); doc.rect(0,0,W,46,'F');
         doc.setFillColor(212,113,46); doc.rect(0,46,W,3,'F');
         addTxt(trip.name.slice(0,38), W/2, 10, {size:20, bold:true, color:'#fff', align:'center'});
@@ -2345,19 +2383,11 @@
         doc.setDrawColor(220,228,226); doc.setLineWidth(0.3); doc.line(0,73,W,73);
         const stats=[{n:P.length,l:'Vietas'},{n:R.length,l:'Lidojumi'},{n:D.length,l:'Dokumenti'},...(days?[{n:days,l:'Dienas'}]:[])];
         const sw=W/stats.length;
-        stats.forEach((s,i)=>{
-            const cx=sw*i+sw/2;
-            addTxt(String(s.n), cx, 52, {size:17, bold:true, color:'#1A5F58', align:'center'});
-            addTxt(s.l, cx, 64, {size:8.5, color:'#7A8C8A', align:'center'});
-        });
+        stats.forEach((s,i)=>{ const cx=sw*i+sw/2; addTxt(String(s.n), cx, 52, {size:17, bold:true, color:'#1A5F58', align:'center'}); addTxt(s.l, cx, 64, {size:8.5, color:'#7A8C8A', align:'center'}); });
         y=80;
-        if (trip.description){
-            chk(10);
-            y += addTxt(trip.description, ML, y, {size:10, color:'#4A5568', maxW:TW});
-            y += 4;
-        }
+        if (trip.description){ chk(10); y += addTxt(trip.description, ML, y, {size:10, color:'#4A5568', maxW:TW}); y += 4; }
 
-        // ── ITINERARY ──
+        // ITINERARY
         secHdr('CEĻOJUMA PLĀNS / LAIKA SKALA');
         const allItems=[...P.map(p=>({...p,_t:'place'})),...R.map(r=>({...r,_t:'route'}))].sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
         const byD={}, noD=[];
@@ -2373,7 +2403,7 @@
                 if (it._t==='route') {
                     const dist=gcDist(it.fromLat,it.fromLng,it.toLat,it.toLng);
                     doc.setFillColor(212,113,46); doc.circle(ML+2.5,y+2.5,2,'F');
-                    y += addTxt((it.fromIata||'?')+' → '+(it.toIata||'?')+(it.flightNumber?' · '+it.flightNumber:'')+(it.departureTime?' · '+it.departureTime:''), ML+6.5, y, {size:9.5, bold:true, color:'#C2410C'});
+                    y += addTxt((it.fromIata||'?')+' → '+(it.toIata||'?')+(it.flightNumber?' · '+it.flightNumber:''), ML+6.5, y, {size:9.5, bold:true, color:'#C2410C'});
                     y += addTxt(esc((it.fromName||''))+' → '+esc((it.toName||''))+' · '+dist.toLocaleString()+' km', ML+6.5, y, {size:8.5, color:'#666', maxW:TW-8});
                 } else {
                     const pt=getPT(it.type);
@@ -2398,7 +2428,7 @@
             });
         }
 
-        // ── FLIGHTS ──
+        // FLIGHTS
         if (R.length) {
             secHdr('LIDOJUMI');
             R.forEach(r=>{
@@ -2413,7 +2443,7 @@
             });
         }
 
-        // ── DOCUMENTS ──
+        // DOCUMENTS
         if (D.length) {
             secHdr('DOKUMENTI');
             D.forEach(d=>{
@@ -2432,7 +2462,6 @@
             });
         }
 
-        // ── FOOTER ──
         const pc=doc.getNumberOfPages();
         for(let i=1;i<=pc;i++){
             doc.setPage(i);
@@ -2445,85 +2474,20 @@
         notif('PDF eksportēts! 📄','ok');
     }
 
+    // drag helpers for plan items
+    let _dragPlaceId = null, _dragOverId = null;
+    function onPlaceDragStart(e, placeId) { _dragPlaceId = placeId; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', placeId); setTimeout(() => e.target.closest('.card')?.classList.add('dragging'), 0); }
+    function onPlaceDragOver(e, placeId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (_dragOverId !== placeId) { document.querySelectorAll('.card.drag-over').forEach(el => el.classList.remove('drag-over')); _dragOverId = placeId; e.target.closest('.card')?.classList.add('drag-over'); } }
+    function onPlaceDragLeave(e) { e.target.closest('.card')?.classList.remove('drag-over'); }
+    function onPlaceDrop(e, targetId) { e.preventDefault(); document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging')); if (!_dragPlaceId || _dragPlaceId === targetId) return; const fromIdx = S.places.findIndex(p => p.id === _dragPlaceId); const toIdx = S.places.findIndex(p => p.id === targetId); if (fromIdx < 0 || toIdx < 0) return; const [moved] = S.places.splice(fromIdx, 1); S.places.splice(toIdx, 0, moved); save(); if (S.isDesk) renderPlan('d-plans-ct','d-plans-sub',true); else renderPlan('plans-ct','plans-sub',false); _dragPlaceId = null; _dragOverId = null; }
+    function onPlaceDragEnd(e) { document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging')); _dragPlaceId = null; _dragOverId = null; }
 
-    // ── DRAG TO REORDER PLACES IN PLAN ──
-    let _dragPlaceId = null;
-    let _dragOverId = null;
+    function buildMapDateChips() { const chips = document.getElementById('map-df-chips'); if (!chips) return; const allPl = curPl().filter(p => p.lat && p.lng); const allRts = curRts().filter(r => r.fromLat && r.toLat); const dates = [...new Set([...allPl.map(p => p.date), ...allRts.map(r => r.date)].filter(Boolean))].sort(); if (!dates.length) { chips.innerHTML = '<div style="font-size:12px;color:var(--mu)">Nav datumu</div>'; return; } const DAY_COL = ['#1A5F58','#2563EB','#7C3AED','#C2410C','#0891B2','#065F46','#BE123C','#854D0E']; const mk = (val, label, col) => { const on = S.mapDateFilter === val; const btn = document.createElement('button'); btn.style.cssText = `display:flex;align-items:center;gap:6px;width:100%;text-align:left;padding:6px 8px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:600;margin-bottom:4px;background:${on ? 'var(--Pl)' : 'transparent'};color:${on ? 'var(--P)' : 'var(--mu)'}`; btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0;display:inline-block"></span>${label}`; btn.addEventListener('click', () => setMapFilter(val)); return btn; }; chips.innerHTML = ''; chips.appendChild(mk('all', 'Visas dienas', 'var(--mu)')); dates.forEach((d, i) => chips.appendChild(mk(d, lvmd(d), DAY_COL[i % DAY_COL.length]))); }
+    function toggleMapFilter() { const p = document.getElementById('map-df-panel'); if (!p) return; if (p.style.display === 'none' || !p.style.display) { buildMapDateChips(); p.style.display = 'block'; } else p.style.display = 'none'; }
+    function setMapFilter(val) { S.mapDateFilter = val; localStorage.setItem('cp5_mapdf', val); const p = document.getElementById('map-df-panel'); if (p) p.style.display = 'none'; renderMap(); }
 
-    function onPlaceDragStart(e, placeId) {
-        _dragPlaceId = placeId;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', placeId);
-        setTimeout(() => e.target.closest('.card')?.classList.add('dragging'), 0);
-    }
-    function onPlaceDragOver(e, placeId) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        if (_dragOverId !== placeId) {
-            document.querySelectorAll('.card.drag-over').forEach(el => el.classList.remove('drag-over'));
-            _dragOverId = placeId;
-            e.target.closest('.card')?.classList.add('drag-over');
-        }
-    }
-    function onPlaceDragLeave(e) {
-        e.target.closest('.card')?.classList.remove('drag-over');
-    }
-    function onPlaceDrop(e, targetId) {
-        e.preventDefault();
-        document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging'));
-        if (!_dragPlaceId || _dragPlaceId === targetId) return;
-        const fromIdx = S.places.findIndex(p => p.id === _dragPlaceId);
-        const toIdx   = S.places.findIndex(p => p.id === targetId);
-        if (fromIdx < 0 || toIdx < 0) return;
-        const [moved] = S.places.splice(fromIdx, 1);
-        S.places.splice(toIdx, 0, moved);
-        save();
-        if (S.isDesk) renderPlan('d-plans-ct','d-plans-sub',true);
-        else          renderPlan('plans-ct','plans-sub',false);
-        _dragPlaceId = null; _dragOverId = null;
-    }
-    function onPlaceDragEnd(e) {
-        document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging'));
-        _dragPlaceId = null; _dragOverId = null;
-    }
-    function buildMapDateChips() {
-        const chips = document.getElementById('map-df-chips'); if (!chips) return;
-        const allPl = curPl().filter(p => p.lat && p.lng);
-        const allRts = curRts().filter(r => r.fromLat && r.toLat);
-        const dates = [...new Set([...allPl.map(p => p.date), ...allRts.map(r => r.date)].filter(Boolean))].sort();
-        if (!dates.length) { chips.innerHTML = '<div style="font-size:12px;color:var(--mu)">Nav datumu</div>'; return; }
-        const DAY_COL = ['#1A5F58','#2563EB','#7C3AED','#C2410C','#0891B2','#065F46','#BE123C','#854D0E'];
-        const mk = (val, label, col) => {
-            const on = S.mapDateFilter === val;
-            const btn = document.createElement('button');
-            btn.style.cssText = `display:flex;align-items:center;gap:6px;width:100%;text-align:left;padding:6px 8px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:600;margin-bottom:4px;background:${on ? 'var(--Pl)' : 'transparent'};color:${on ? 'var(--P)' : 'var(--mu)'}`;
-            btn.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0;display:inline-block"></span>${label}`;
-            btn.addEventListener('click', () => setMapFilter(val));
-            return btn;
-        };
-        chips.innerHTML = '';
-        chips.appendChild(mk('all', 'Visas dienas', 'var(--mu)'));
-        dates.forEach((d, i) => chips.appendChild(mk(d, lvmd(d), DAY_COL[i % DAY_COL.length])));
-    }
-    function toggleMapFilter() {
-        const p = document.getElementById('map-df-panel'); if (!p) return;
-        if (p.style.display === 'none' || !p.style.display) { buildMapDateChips(); p.style.display = 'block'; }
-        else p.style.display = 'none';
-    }
-    function setMapFilter(val) {
-        S.mapDateFilter = val; localStorage.setItem('cp5_mapdf', val);
-        const p = document.getElementById('map-df-panel'); if (p) p.style.display = 'none';
-        renderMap();
-    }
-
-    function dragItem(ev, type, id) {
-        ev.dataTransfer.setData('text', JSON.stringify({type, id}));
-    }
-    function notif(msg, type = 'inf') { const c = document.getElementById('nwrap'); const n = document.createElement('div');
-        n.className = 'nf ' + type;
-        n.textContent = msg;
-        c.appendChild(n);
-        setTimeout(() => n.remove(), 3200); }
+    function dragItem(ev, type, id) { ev.dataTransfer.setData('text', JSON.stringify({type, id})); }
+    function notif(msg, type = 'inf') { const c = document.getElementById('nwrap'); const n = document.createElement('div'); n.className = 'nf ' + type; n.textContent = msg; c.appendChild(n); setTimeout(() => n.remove(), 3200); }
 
     function updateOnline() { const d = document.getElementById('odot'); if (d) { d.className = navigator.onLine ? 'dot-on' : 'dot-off'; } }
     window.addEventListener('online', updateOnline);
@@ -2540,30 +2504,12 @@
         S.isDesk = window.innerWidth >= 900;
         applyLayout();
         renderAll();
-        window.addEventListener('resize', () => { const wasDesk = S.isDesk;
-            S.isDesk = window.innerWidth >= 900; if (S.isDesk !== wasDesk) { applyLayout();
-                renderAll(); } });
-        setTimeout(() => { if (LMAP) { LMAP.invalidateSize();
-                renderMap(); } }, 200); if (S.autoSync && S.syncUrl && navigator.onLine) setTimeout(syncDown, 800);
+        window.addEventListener('resize', () => { const wasDesk = S.isDesk; S.isDesk = window.innerWidth >= 900; if (S.isDesk !== wasDesk) { applyLayout(); renderAll(); } });
+        setTimeout(() => { if (LMAP) { LMAP.invalidateSize(); renderMap(); } }, 200); if (S.autoSync && S.syncUrl && navigator.onLine) setTimeout(syncDown, 800);
         history.replaceState({ app: true }, '', location.href);
         _navStack.push(S.tab);
-        window.addEventListener('popstate', e => {
-        // Navigation history stack for back button
-        // First close modal if open
-        if (modalOpen) { closeModal(); history.pushState({ app: true }, '', location.href); return; }
-        // Then close submenu if open
-        const sm = document.getElementById('sm-ov');
-        if (sm && sm.classList.contains('on')) { sm.classList.remove('on'); document.getElementById('sm-panel')?.classList.remove('on'); history.pushState({ app: true }, '', location.href); return; }
-        // Navigate back in tab stack
-        if (_navStack.length > 1) {
-            _navStack.pop();
-            const prev = _navStack[_navStack.length - 1];
-            if (prev) switchTab(prev);
-        } else {
-            // Stay in app — push state so next back press repeats
-            history.pushState({ app: true }, '', location.href);
-        }
-    }); });
+        window.addEventListener('popstate', e => { if (modalOpen) { closeModal(); history.pushState({ app: true }, '', location.href); return; } const sm = document.getElementById('sm-ov'); if (sm && sm.classList.contains('on')) { sm.classList.remove('on'); document.getElementById('sm-panel')?.classList.remove('on'); history.pushState({ app: true }, '', location.href); return; } if (_navStack.length > 1) { _navStack.pop(); const prev = _navStack[_navStack.length - 1]; if (prev) switchTab(prev); } else { history.pushState({ app: true }, '', location.href); } });
+    });
     </script>
 </body>
 </html>
