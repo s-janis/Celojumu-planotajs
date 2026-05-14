@@ -18,85 +18,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link id="gfonts" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
-    </script>
-    <script>
-        (function() {
-            function mkIcon(sz) {
-                var cv = document.createElement('canvas'),
-                    ctx = cv.getContext('2d');
-                cv.width = sz;
-                cv.height = sz;
-                var cx = sz / 2,
-                    cy = sz / 2,
-                    r = sz / 2 - 3;
-                ctx.fillStyle = '#1A5F58';
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                var s = sz * 0.48;
-                ctx.moveTo(cx + s * 0.58, cy);
-                ctx.lineTo(cx - s * 0.12, cy - s * 0.30);
-                ctx.lineTo(cx - s * 0.12, cy - s * 0.06);
-                ctx.lineTo(cx - s * 0.46, cy + s * 0.10);
-                ctx.lineTo(cx - s * 0.46, cy - s * 0.30);
-                ctx.lineTo(cx - s * 0.58, cy);
-                ctx.lineTo(cx - s * 0.46, cy + s * 0.30);
-                ctx.lineTo(cx - s * 0.46, cy - s * 0.10);
-                ctx.lineTo(cx - s * 0.12, cy + s * 0.06);
-                ctx.lineTo(cx - s * 0.12, cy + s * 0.30);
-                ctx.closePath();
-                ctx.fill();
-                return cv.toDataURL('image/png');
-            }
-            var ico192 = mkIcon(192),
-                ico512 = mkIcon(512);
-            var appleEl = document.getElementById('cp-apple-icon');
-            if (appleEl) appleEl.href = ico192;
-            var manifest = {
-                name: 'Ceļojuma Plānotājs',
-                short_name: 'Ceļojums',
-                description: 'Ceļojumu plānošanas lietotne ar kartēm un dokumentu pārvaldību',
-                start_url: window.location.href,
-                scope: window.location.pathname,
-                display: 'standalone',
-                orientation: 'portrait',
-                background_color: '#F5F1EB',
-                theme_color: '#1A5F58',
-                icons: [{ src: ico192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' }, { src: ico512,
-                    sizes: '512x512', type: 'image/png', purpose: 'any maskable' }]
-            };
-            var mb = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-            var mel = document.getElementById('cp-manifest');
-            if (mel) mel.href = URL.createObjectURL(mb);
-            if ('serviceWorker' in navigator) {
-                var swCode = 'const CACHE="cp-v3.1";' +
-                    'const EXT=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"];' +
-                    'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(EXT.map(u=>fetch(new Request(u,{mode:"no-cors"})).then(r=>c.put(u,r)).catch(()=>{}))).catch(()=>{}));});' +
-                    'self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim()));});' +
-                    'self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(cached=>{if(cached)return cached;return fetch(e.request).then(resp=>{if(resp&&(resp.status===200||resp.type==="opaque")){const cl=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cl)).catch(()=>{});}return resp;}).catch(()=>caches.match(e.request));}).catch(()=>fetch(e.request)));});' +
-                    'self.addEventListener("message",e=>{if(e.data&&e.data.type==="CACHE_PAGE"){caches.open(CACHE).then(c=>c.add(new Request(e.data.url,{cache:"reload"})).catch(()=>{})).catch(()=>{});}});';
-                var swBlob = new Blob([swCode], { type: 'application/javascript' });
-                navigator.serviceWorker.register(URL.createObjectURL(swBlob), { scope: window.location.pathname }).then(
-                    function(reg) {
-                        var cache = function() { if (navigator.serviceWorker.controller) navigator.serviceWorker
-                                .controller.postMessage({ type: 'CACHE_PAGE', url: window.location.href }); };
-                        if (navigator.serviceWorker.controller) cache();
-                        navigator.serviceWorker.addEventListener('controllerchange', cache);
-                    }).catch(function() {});
-            }
-            window.cpDeferredPrompt = null;
-            window.addEventListener('beforeinstallprompt', function(e) { e.preventDefault();
-                window.cpDeferredPrompt = e;
-                window.dispatchEvent(new CustomEvent('pwaReady', { detail: e })); });
-            window.addEventListener('appinstalled', function() { window.cpDeferredPrompt = null;
-                window.dispatchEvent(new CustomEvent('pwaInstalled')); });
-        })();
-    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         *,
         *::before,
@@ -1582,6 +1505,22 @@
             text-align: center;
         }
         .codeblk{background:#1E293B;color:#7DD3FC;border-radius:14px;padding:14px 16px;font-size:11px;font-family:monospace;overflow:auto;max-height:200px;white-space:pre;line-height:1.6;}
+
+        /* Drag & drop reorder */
+        .drag-handle {
+            cursor: grab;
+            color: var(--mu);
+            font-size: 14px;
+            padding: 0 4px 0 0;
+            line-height: 1;
+            user-select: none;
+            flex-shrink: 0;
+            opacity: .5;
+            letter-spacing: -2px;
+        }
+        .drag-handle:hover { opacity: 1; color: var(--P); }
+        .card.drag-over { border: 2px dashed var(--P) !important; background: var(--Pl) !important; }
+        .card.dragging { opacity: .4; }
     </style>
 </head>
 <body>
@@ -1589,7 +1528,7 @@
         <header id="hdr">
             <div class="logo">
                 <div class="logo-ico">✈️</div>
-                <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v3.8</div></div>
+                <div><div class="logo-name">Ceļojuma Plānotājs</div><div class="logo-ver">v4.0</div></div>
             </div>
             <div class="hdr-r">
                 <span id="odot" class="dot-on" title="Tiešsaistē"></span>
@@ -1704,6 +1643,7 @@
         selTripColor = 1;
     let modalOpen = false;
     let draggedPlaceId = null;
+    let pushHistory = true;   // <-- FIX: missing global variable for navigation history
     const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const fd = d => { if (!d) return '';
@@ -1945,9 +1885,9 @@
             muzejs:'#DB2777',pludmale:'#0891B2',iepirkumi:'#7C3AED',spa:'#0891B2',other:'#64748B'
         };
         const col = typeColors[p.type] || '#1A5F58';
-        return `<div class="card draggable-place" data-place-id="${p.id}" draggable="false" style="margin-bottom:6px;opacity:${isPast?'.65':'1'};border-left:3px solid ${col}">
+        return `<div class="card draggable-place" data-place-id="${p.id}" draggable="true" ondragstart="onPlaceDragStart(event,'${p.id}')" ondragover="onPlaceDragOver(event,'${p.id}')" ondragleave="onPlaceDragLeave(event)" ondrop="onPlaceDrop(event,'${p.id}')" ondragend="onPlaceDragEnd(event)" style="margin-bottom:6px;opacity:${isPast?'.65':'1'};border-left:3px solid ${col}">
           <div class="crow">
-            <div class="drag-handle" title="Vilkt, lai pārkārtotu" onmousedown="this.closest('.card').draggable=true" onmouseup="this.closest('.card').draggable=false">⋮⋮</div>
+            <div class="drag-handle" title="Vilkt, lai pārkārtotu" style="cursor:grab">⋮⋮</div>
             <div style="display:flex;gap:8px;align-items:flex-start;flex:1;min-width:0">
               <div style="width:36px;height:36px;border-radius:10px;background:${col}20;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${pt.ico}</div>
               <div style="flex:1;min-width:0">
@@ -2042,7 +1982,7 @@
         ct.innerHTML = S.trips.map(t => { const pc = S.places.filter(p => p.tripId === t.id).length; const dc = S.docs.filter(d => d.tripId === t.id).length; const rc = S.routes.filter(r => r.tripId === t.id).length; const days = dbw(t.startDate, t.endDate); return `<div class="tcard" onclick="selTrip('${t.id}')"><div class="tch ${grdC(t.color)}"><div class="tcn">${esc(t.name)}</div><div class="tcd">📍 ${esc(t.destination||'')}</div><div class="tcdt">${fdr(t.startDate,t.endDate)}${days?' · '+days+' dienas':''}</div></div><div class="tcb"><div class="tcst"><div><div class="tcsn">${pc}</div><div class="tcsl">Vietas</div></div><div><div class="tcsn">${rc}</div><div class="tcsl">Lidoj.</div></div><div><div class="tcsn">${dc}</div><div class="tcsl">Dok.</div></div></div><div><button class="btn bg2 bsm" onclick="event.stopPropagation();showTripModal('${t.id}')">✏️</button><button class="btn bd bsm" onclick="event.stopPropagation();delTrip('${t.id}')">🗑️</button></div></div></div>`; }).join(''); }
 
     function renderSet(id) { const el = document.getElementById(id); if (!el) return;
-        el.innerHTML = `<h2 class="sh">Iestatījumi</h2><p class="ss">Izskata, kartes un datu pārvaldība</p>${setS('app','🎨 Izskats','<div class="sec-lbl">Krāsu tēma</div><div class="theme-grid">'+THEMES.map(t=>`<div class="tsw${S.theme===t.id?' on':''}" style="background:${t.color}" onclick="applyTheme(\'${t.id}\')"><span class="tsw-check">${S.theme===t.id?'✓':''}</span></div>`).join('')+'</div><div style="font-size:11px;color:var(--mu);margin:4px 0 12px">'+THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')+'</div><div class="sec-lbl">Fonta stils</div><div class="font-row"><button class="fntbtn'+(S.font==='app'?' on':'')+'" id="fnt-app" onclick="applyFont(\'app\')">Lietotnes fonts</button><button class="fntbtn'+(S.font==='system'?' on':'')+'" id="fnt-system" onclick="applyFont(\'system\')">Sistēmas fonts</button></div><div style="margin-top:14px"><div class="sec-lbl">Teksta izmērs</div><div class="fs-btn-row"><button class="fs-btn" onclick="changeFontSize(-0.1)">A−</button><div class="fs-preview" id="fs-preview-lbl">'+Math.round((S.fontSize||1)*100)+'%</div><button class="fs-btn" onclick="changeFontSize(0.1)">A+</button><button class="fs-btn" onclick="resetFontSize()">↺</button></div></div>')}${setS('map','🗺️ Kartes sistēma','<div class="sec-lbl">Kartes slānis</div><div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+Object.entries(TILE_LAYERS).map(([k,v])=>`<button class="btn bg2 bsm tile-opt${S.tileLayer===k?' on':''}" id="tile-${k}" onclick="switchTileLayer(\'${k}\')" style="justify-content:flex-start">${S.tileLayer===k?'✓ ':''}${v.name}</button>`).join('')+'</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab(\'map\');fitAll()">🎯 Atiestatīt skatu</button>')}${setS('sync','☁️ Google Sheets Sinhronizācija','<div class="fg"><label class="fl">Apps Script URL</label><input class="inp" type="url" value="'+esc(S.syncUrl)+'" oninput="S.syncUrl=this.value;localStorage.setItem(\'cp5_syncUrl\',this.value)"></div><div style="display:flex;gap:8px"><button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt</button><button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt</button></div>')}${setS('asc','📋 Apps Script Kods','<p style="font-size:12px;color:var(--mu);margin-bottom:10px">script.google.com → Jauns projekts → Ielīmē kodu → Execute as: Me · Access: Anyone</p><div id="asc-c" style="background:#1E293B;color:#7DD3FC;border-radius:14px;padding:14px 16px;font-size:11px;font-family:monospace;overflow:auto;max-height:200px;white-space:pre;line-height:1.6;margin:8px 0">function doGet(e){var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var v=sh.getRange(\'A1\').getValue();var d=v?JSON.parse(v):{trips:[],places:[],docs:[],routes:[]};return ContentService.createTextOutput(JSON.stringify({ok:true,data:d})).setMimeType(ContentService.MimeType.JSON);}function doPost(e){try{var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var p=JSON.parse(e.postData.contents);if(p.action===\'save\'){sh.getRange(\'A1\').setValue(JSON.stringify(p.data));return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);}}catch(err){return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);}}</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>')}${setS('dt','💾 Lokālie dati','<div style="display:flex;flex-direction:column;gap:8px"><button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON</button><label class="btn bg2 bsm" style="cursor:pointer;justify-content:center">📤 Importēt JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label><button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button></div>')}<div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">Ceļojuma Plānotājs · OpenStreetMap</div>`; }
+        el.innerHTML = `<h2 class="sh">Iestatījumi</h2><p class="ss">Izskata, kartes un datu pārvaldība</p>${setS('app','🎨 Izskats','<div class="sec-lbl">Krāsu tēma</div><div class="theme-grid">'+THEMES.map(t=>`<div class="tsw${S.theme===t.id?' on':''}" style="background:${t.color}" onclick="applyTheme(\'${t.id}\')"><span class="tsw-check">${S.theme===t.id?'✓':''}</span></div>`).join('')+'</div><div style="font-size:11px;color:var(--mu);margin:4px 0 12px">'+THEMES.map(t=>`<span style="${S.theme===t.id?'font-weight:700;color:var(--tx)':'color:var(--mu)'}">${t.label}</span>`).join(' · ')+'</div><div class="sec-lbl">Fonta stils</div><div class="font-row"><button class="fntbtn'+(S.font==='app'?' on':'')+'" id="fnt-app" onclick="applyFont(\'app\')">Lietotnes fonts</button><button class="fntbtn'+(S.font==='system'?' on':'')+'" id="fnt-system" onclick="applyFont(\'system\')">Sistēmas fonts</button></div><div style="margin-top:14px"><div class="sec-lbl">Teksta izmērs</div><div class="fs-btn-row"><button class="fs-btn" onclick="changeFontSize(-0.1)">A−</button><div class="fs-preview" id="fs-preview-lbl">'+Math.round((S.fontSize||1)*100)+'%</div><button class="fs-btn" onclick="changeFontSize(0.1)">A+</button><button class="fs-btn" onclick="resetFontSize()">↺</button></div></div>')}${setS('map','🗺️ Kartes sistēma','<div class="sec-lbl">Kartes slānis</div><div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">'+Object.entries(TILE_LAYERS).map(([k,v])=>`<button class="btn bg2 bsm tile-opt${S.tileLayer===k?' on':''}" id="tile-${k}" onclick="switchTileLayer(\'${k}\')" style="justify-content:flex-start">${S.tileLayer===k?'✓ ':''}${v.name}</button>`).join('')+'</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="switchTab(\'map\');fitAll()">🎯 Atiestatīt skatu</button>')}${setS('sync','☁️ Google Sheets Sinhronizācija','<div class="fg"><label class="fl">Apps Script URL</label><input class="inp" type="url" value="'+esc(S.syncUrl)+'" oninput="S.syncUrl=this.value;localStorage.setItem(\'cp5_syncUrl\',this.value)"></div><div style="display:flex;gap:8px"><button class="btn bg2 bsm" style="flex:1" onclick="syncUp()">↑ Saglabāt</button><button class="btn bg2 bsm" style="flex:1" onclick="syncDown()">↓ Ielādēt</button></div>')}${setS('asc','📋 Apps Script Kods','<p style="font-size:12px;color:var(--mu);margin-bottom:10px">script.google.com → Jauns projekts → Ielīmē kodu → Execute as: Me · Access: Anyone</p><div id="asc-c" style="background:#1E293B;color:#7DD3FC;border-radius:14px;padding:14px 16px;font-size:11px;font-family:monospace;overflow:auto;max-height:200px;white-space:pre;line-height:1.6;margin:8px 0">function doGet(e){var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var v=sh.getRange(\'A1\').getValue();var d=v?JSON.parse(v):{trips:[],places:[],docs:[],routes:[]};return ContentService.createTextOutput(JSON.stringify({ok:true,data:d})).setMimeType(ContentService.MimeType.JSON);}function doPost(e){try{var ss=SpreadsheetApp.getActiveSpreadsheet();var sh=ss.getSheetByName(\'CelojumsData\');if(!sh)sh=ss.insertSheet(\'CelojumsData\');var p=JSON.parse(e.postData.contents);if(p.action===\'save\'){sh.getRange(\'A1\').setValue(JSON.stringify(p.data));return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);}}catch(err){return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);}}</div><button class="btn bg2 bsm" style="margin-top:8px" onclick="cpScript()">📋 Kopēt kodu</button>')}${setS('dt','💾 Lokālie dati','<div style="display:flex;flex-direction:column;gap:8px"><button class="btn bg2 bsm" onclick="expJSON()">📥 Eksportēt JSON</button><label class="btn bg2 bsm" style="cursor:pointer;justify-content:center">📤 Importēt JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label><button class="btn bd bsm" onclick="clearAll()">🗑️ Dzēst VISUS datus</button></div>')}<div style="text-align:center;color:var(--mu);font-size:11px;margin-top:24px">Ceļojuma Plānotājs · OpenStreetMap</div><div style="text-align:center;padding:20px 0 4px;color:var(--mu);font-size:11px">Ceļojuma Plānotājs <b style="color:var(--P)">v4.0</b></div>`; }
 
     function setS(id, title, body) { return `<div class="sset"><div class="sseth" onclick="togSet('${id}')"><span>${title}</span><svg id="sc-${id}" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg></div><div id="sb-${id}" style="display:none" class="ssetb">${body}</div></div>`; }
 
@@ -2280,7 +2220,15 @@
         par.appendChild(mw);
         mw.style.cssText = 'display:block;position:absolute;inset:0;'; }
 
-    function switchTab(tab) { S.tab = tab; if (S.isDesk) { document.querySelectorAll('[id^="dp-"]').forEach(p => p.classList.remove('on'));
+    // Navigation stack for back button
+    const _navStack = [];
+    function _navPush(tab) {
+        if (_navStack[_navStack.length-1] !== tab) _navStack.push(tab);
+        history.pushState({ navTab: tab }, '', location.href);
+    }
+
+    function switchTab(tab) {
+        if (pushHistory) _navPush(tab); S.tab = tab; if (S.isDesk) { document.querySelectorAll('[id^="dp-"]').forEach(p => p.classList.remove('on'));
             document.querySelectorAll('.sn').forEach(b => b.classList.remove('on')); const dp = document.getElementById('dp-' + tab); if (dp) dp.classList.add('on'); const sn = document.getElementById('sn-' + tab); if (sn) sn.classList.add('on'); if (tab === 'map') { ensureMapIn('dp-map');
                 setTimeout(() => { if (LMAP) LMAP.invalidateSize(); }, 80);
                 renderMap(); } else if (tab === 'plans') renderPlan('d-plans-ct', 'd-plans-sub', true); else if (tab === 'docs') renderDocs('d-docs-ct', 'd-doc-filt', true); else if (tab === 'trips') renderTrips('d-trips-ct'); else if (tab === 'set') renderSet('d-set-ct'); } else { document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
@@ -2327,164 +2275,217 @@
         if (!window.jspdf) { notif('jsPDF vēl ielādējas...', 'err'); return; }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const W = 210, ML = 14, MR = 196, TW = MR - ML;
-        let y = 0;
+        const W=210, ML=14, MR=196, TW=MR-ML;
+        let y=0;
 
-        const P = S.places.filter(p => p.tripId === trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
-        const R = S.routes.filter(r => r.tripId === trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
-        const D = S.docs.filter(d => d.tripId === trip.id);
+        const P = S.places.filter(p=>p.tripId===trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+        const R = S.routes.filter(r=>r.tripId===trip.id).sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+        const D = S.docs.filter(d=>d.tripId===trip.id);
 
-        // Canvas text renderer for Unicode/Latvian
-        const cv = document.createElement('canvas');
-        const ctx = cv.getContext('2d');
-        function addTxt(text, x, yy, opts = {}) {
-            const { size=10, bold=false, color='#1C1C2E', maxW=null, align='left' } = opts;
-            if (!text) return 0;
+        // Canvas renderer — needed for Latvian Unicode chars
+        const cv=document.createElement('canvas'), ctx=cv.getContext('2d');
+        function addTxt(text, x, yy, opts={}) {
+            if (!text && text!==0) return 0;
+            const {size=10, bold=false, color='#1C1C2E', maxW=null, align='left'} = opts;
             const str = String(text);
-            const ff = (bold?'bold ':'')+Math.round(size*3.78)+'px DM Sans,system-ui,sans-serif';
+            const fPx = Math.round(size * 3.779528);
+            const ff = (bold?'bold ':'')+fPx+'px "DM Sans",Arial,sans-serif';
             ctx.font = ff;
-            const wPx = Math.ceil(ctx.measureText(str).width) + 4;
-            const hPx = Math.ceil(size * 3.78 * 1.5) + 4;
-            cv.width = Math.max(wPx, 4); cv.height = Math.max(hPx, 4);
-            ctx.clearRect(0, 0, cv.width, cv.height);
-            ctx.font = ff; ctx.fillStyle = color; ctx.textBaseline = 'middle';
-            ctx.fillText(str, 2, hPx / 2);
-            const wMm = wPx / 3.78, hMm = hPx / 3.78;
-            const ax = align==='right' ? x-wMm : align==='center' ? x-wMm/2 : x;
-            if (maxW && wMm > maxW) {
-                // Word wrap
-                const words = str.split(' '); let line = ''; let totalH = 0;
-                const lh = size * 0.55;
+            const measW = ctx.measureText(str).width;
+
+            // Word wrap if maxW set
+            if (maxW && measW/3.779528 > maxW) {
+                const words = str.split(' ');
+                let line='', totalH=0, lineH=size*0.52;
                 for (const w of words) {
                     const test = line ? line+' '+w : w;
-                    ctx.font = ff;
-                    const tw = ctx.measureText(test).width/3.78;
-                    if (tw > maxW && line) {
-                        addTxt(line, x, yy+totalH, {...opts, maxW: null});
-                        totalH += lh; line = w;
+                    if (ctx.measureText(test).width/3.779528 > maxW && line) {
+                        totalH += addTxt(line, x, yy+totalH, {...opts, maxW:null});
+                        totalH += lineH*0.1;
+                        line = w;
                     } else line = test;
                 }
-                if (line) { addTxt(line, x, yy+totalH, {...opts, maxW: null}); totalH += lh; }
-                return totalH;
+                if (line) totalH += addTxt(line, x, yy+totalH, {...opts, maxW:null});
+                return totalH + lineH*0.2;
             }
-            doc.addImage(cv.toDataURL('image/png'), 'PNG', ax, yy, wMm, hMm);
-            return hMm;
+
+            const wPx = Math.ceil(measW)+4, hPx = Math.ceil(fPx*1.5)+4;
+            cv.width = Math.max(wPx,4); cv.height = Math.max(hPx,4);
+            ctx.clearRect(0,0,cv.width,cv.height);
+            ctx.font = ff; ctx.fillStyle = color; ctx.textBaseline='middle';
+            ctx.fillText(str, 2, hPx/2);
+            const wMm = wPx/3.779528, hMm = hPx/3.779528;
+            const ax = align==='right'?x-wMm : align==='center'?x-wMm/2 : x;
+            doc.addImage(cv.toDataURL('image/png'),'PNG', ax, yy, wMm, hMm);
+            return size*0.52;
         }
-        function chk(need=16) { if (y + need > 282) { doc.addPage(); y = 0; } }
+        function newPage() { doc.addPage(); y=0; }
+        function chk(need=14) { if (y+need>284) newPage(); }
+        function hLine(col=[220,228,226]) {
+            doc.setDrawColor(...col); doc.setLineWidth(0.3);
+            doc.line(ML, y, MR, y);
+        }
         function secHdr(title) {
-            chk(14); y += 3;
-            doc.setFillColor(26, 95, 88); doc.roundedRect(ML, y, TW, 8, 2, 2, 'F');
-            addTxt(title, ML+3, y+0.5, {size:10, bold:true, color:'#ffffff'});
-            y += 11;
-        }
-        function line(x1,y1,x2,y2,col=[200,210,208],w=0.3) {
-            doc.setDrawColor(...col); doc.setLineWidth(w); doc.line(x1,y1,x2,y2);
+            chk(14); y+=3;
+            doc.setFillColor(26,95,88); doc.roundedRect(ML,y,TW,8,1.5,1.5,'F');
+            addTxt(title, ML+3, y+0.8, {size:10, bold:true, color:'#ffffff'});
+            y+=11;
         }
 
-        // ── COVER PAGE ──
-        doc.setFillColor(26,95,88); doc.rect(0,0,W,48,'F');
-        doc.setFillColor(212,113,46); doc.rect(0,48,W,4,'F');
-        addTxt(trip.name.slice(0,40), W/2, 12, {size:22, bold:true, color:'#ffffff', align:'center'});
-        if (trip.destination) addTxt(trip.destination, W/2, 28, {size:12, color:'rgba(255,255,255,.9)', align:'center'});
-        const dr = fdr(trip.startDate, trip.endDate), days = dbw(trip.startDate, trip.endDate);
-        if (dr) addTxt(dr+(days?' · '+days+' dienas':''), W/2, 38, {size:10, color:'#C8F0EC', align:'center'});
+        // ── COVER ──
+        doc.setFillColor(26,95,88); doc.rect(0,0,W,46,'F');
+        doc.setFillColor(212,113,46); doc.rect(0,46,W,3,'F');
+        addTxt(trip.name.slice(0,38), W/2, 10, {size:20, bold:true, color:'#fff', align:'center'});
+        if (trip.destination) addTxt(trip.destination, W/2, 26, {size:12, color:'rgba(255,255,255,.88)', align:'center'});
+        const dr=fdr(trip.startDate,trip.endDate), days=dbw(trip.startDate,trip.endDate);
+        if (dr) addTxt(dr+(days?' · '+days+' dienas':''), W/2, 37, {size:10, color:'#C8F0EC', align:'center'});
 
-        // Stats
-        doc.setFillColor(248,251,250); doc.rect(0,52,W,26,'F');
-        line(0,78,W,78);
-        const stats = [{n:P.length,l:'Vietas'},{n:R.length,l:'Lidojumi'},{n:D.length,l:'Dokumenti'},...(days?[{n:days,l:'Dienas'}]:[])];
-        const sw = W/stats.length;
-        stats.forEach((s,i) => {
-            const cx = sw*i+sw/2;
-            addTxt(String(s.n), cx, 56, {size:18, bold:true, color:'#1A5F58', align:'center'});
-            addTxt(s.l, cx, 70, {size:9, color:'#7A8C8A', align:'center'});
+        // Stats row
+        doc.setFillColor(248,251,250); doc.rect(0,49,W,24,'F');
+        doc.setDrawColor(220,228,226); doc.setLineWidth(0.3); doc.line(0,73,W,73);
+        const stats=[{n:P.length,l:'Vietas'},{n:R.length,l:'Lidojumi'},{n:D.length,l:'Dokumenti'},...(days?[{n:days,l:'Dienas'}]:[])];
+        const sw=W/stats.length;
+        stats.forEach((s,i)=>{
+            const cx=sw*i+sw/2;
+            addTxt(String(s.n), cx, 52, {size:17, bold:true, color:'#1A5F58', align:'center'});
+            addTxt(s.l, cx, 64, {size:8.5, color:'#7A8C8A', align:'center'});
         });
-        y = 86;
-        if (trip.description) { chk(12); y += addTxt(trip.description, ML, y, {size:10, color:'#4A5568', maxW:TW})+4; }
+        y=80;
+        if (trip.description){
+            chk(10);
+            y += addTxt(trip.description, ML, y, {size:10, color:'#4A5568', maxW:TW});
+            y += 4;
+        }
 
-        // ── CEĻOJUMA PLĀNS (LAIKA SKALA) ──
+        // ── ITINERARY ──
         secHdr('CEĻOJUMA PLĀNS / LAIKA SKALA');
-        const allItems = [
-            ...P.map(p=>({...p,_t:'place'})),
-            ...R.map(r=>({...r,_t:'route'}))
-        ].sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+        const allItems=[...P.map(p=>({...p,_t:'place'})),...R.map(r=>({...r,_t:'route'}))].sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
         const byD={}, noD=[];
-        allItems.forEach(it => { if(it.date){if(!byD[it.date])byD[it.date]=[];byD[it.date].push(it);}else noD.push(it); });
+        allItems.forEach(it=>{ if(it.date){if(!byD[it.date])byD[it.date]=[];byD[it.date].push(it);}else noD.push(it); });
         let dayNum=1;
-        Object.keys(byD).sort().forEach(date => {
-            chk(16);
-            addTxt(`Diena ${dayNum++}  —  ${lvmd(date)}`, ML, y, {size:10, bold:true, color:'#1A5F58'});
-            y += 6; line(ML,y,MR,y,[26,95,88]); y += 3;
-            byD[date].forEach(it => {
-                chk(13);
+        Object.keys(byD).sort().forEach(date=>{
+            chk(18);
+            addTxt('Diena '+dayNum+'  —  '+lvmd(date), ML, y, {size:10, bold:true, color:'#1A5F58'});
+            y+=5.5; hLine([26,95,88]); y+=3;
+            dayNum++;
+            byD[date].forEach(it=>{
+                chk(14);
                 if (it._t==='route') {
-                    const dist = gcDist(it.fromLat,it.fromLng,it.toLat,it.toLng);
-                    doc.setFillColor(212,113,46); doc.circle(ML+3, y+2.5, 2, 'F');
-                    const label = (it.fromIata||'?')+' → '+(it.toIata||'?')+(it.flightNumber?' · '+it.flightNumber:'')+(it.departureTime?' · '+it.departureTime:'');
-                    addTxt(label, ML+7, y, {size:10, bold:true, color:'#C2410C'});
-                    y += 5.5;
-                    addTxt(esc(it.fromName||'')+' → '+esc(it.toName||'')+' · '+dist.toLocaleString()+' km', ML+7, y, {size:9, color:'#4A5568', maxW:TW-10});
-                    y += 5.5;
+                    const dist=gcDist(it.fromLat,it.fromLng,it.toLat,it.toLng);
+                    doc.setFillColor(212,113,46); doc.circle(ML+2.5,y+2.5,2,'F');
+                    y += addTxt((it.fromIata||'?')+' → '+(it.toIata||'?')+(it.flightNumber?' · '+it.flightNumber:'')+(it.departureTime?' · '+it.departureTime:''), ML+6.5, y, {size:9.5, bold:true, color:'#C2410C'});
+                    y += addTxt(esc((it.fromName||''))+' → '+esc((it.toName||''))+' · '+dist.toLocaleString()+' km', ML+6.5, y, {size:8.5, color:'#666', maxW:TW-8});
                 } else {
-                    const pt = getPT(it.type);
-                    doc.setFillColor(26,95,88); doc.circle(ML+3, y+2.5, 2, 'F');
-                    if (it.visited) { doc.setFillColor(74,222,128); doc.circle(ML+3, y+2.5, 2, 'F'); }
-                    addTxt(it.name, ML+7, y, {size:10, bold:true, color:'#1C1C2E'});
-                    y += 5.5;
-                    const sub = pt.lbl+(it.time?' · '+it.time:'')+(it.address?' · '+it.address.slice(0,60):'')+(it.visited?' · ✓':' ');
-                    addTxt(sub, ML+7, y, {size:9, color:'#4A5568', maxW:TW-10});
-                    y += 5;
-                    if (it.notes) { addTxt('"'+it.notes+'"', ML+9, y, {size:8.5, color:'#888', maxW:TW-12}); y += 4.5; }
+                    const pt=getPT(it.type);
+                    doc.setFillColor(it.visited?74:26, it.visited?222:95, it.visited?128:88);
+                    doc.circle(ML+2.5,y+2.5,2,'F');
+                    y += addTxt(it.name, ML+6.5, y, {size:9.5, bold:true, color:'#1C1C2E'});
+                    const sub=pt.lbl+(it.time?' · '+it.time:'')+(it.address?' · '+it.address.slice(0,55):'')+(it.visited?' ✓':'');
+                    y += addTxt(sub, ML+6.5, y, {size:8.5, color:'#555', maxW:TW-8});
+                    if (it.notes){ y += addTxt('"'+it.notes+'"', ML+8, y, {size:8, color:'#888', maxW:TW-10}); }
                 }
-                y += 1;
+                y+=1.5;
             });
-            y += 3;
+            y+=2;
         });
+        if (noD.length) {
+            chk(12);
+            addTxt('Bez datuma', ML, y, {size:9.5, bold:true, color:'#1A5F58'}); y+=5.5;
+            noD.forEach(it=>{
+                chk(10); const pt=getPT(it.type);
+                y += addTxt('• '+it.name+' ('+pt.lbl+')', ML+3, y, {size:9, color:'#444', maxW:TW-4});
+                y+=1;
+            });
+        }
 
-        // ── LIDOJUMI ──
+        // ── FLIGHTS ──
         if (R.length) {
             secHdr('LIDOJUMI');
-            R.forEach(r => {
-                chk(17);
-                const dist = gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
+            R.forEach(r=>{
+                chk(18);
+                const dist=gcDist(r.fromLat,r.fromLng,r.toLat,r.toLng);
                 doc.setFillColor(212,113,46); doc.roundedRect(ML,y,TW,14,2,2,'F');
-                addTxt((r.fromIata||'?')+'  ✈  '+(r.toIata||'?'), ML+3, y+1, {size:13, bold:true, color:'#fff'});
-                const meta = [r.fromName+' → '+r.toName, r.flightNumber?'Reiss: '+r.flightNumber:'', r.date?fd(r.date):'', r.departureTime?'Izlido: '+r.departureTime:'', r.arrivalTime?'Ielido: '+r.arrivalTime:''].filter(Boolean).join('  ·  ');
-                addTxt(meta, ML+3, y+8, {size:9, color:'#FDEBD0', maxW:TW-30});
-                addTxt(dist.toLocaleString()+' km · '+gcTime(dist), MR-2, y+2, {size:8, color:'#FDEBD0', align:'right'});
-                y += 18;
+                addTxt((r.fromIata||'?')+'  ✈  '+(r.toIata||'?'), ML+3, y+1.5, {size:13, bold:true, color:'#fff'});
+                const meta=[r.fromName+' → '+r.toName,r.flightNumber?'Reiss: '+r.flightNumber:'',r.date?fd(r.date):'',r.departureTime?'Izlido: '+r.departureTime:'',r.arrivalTime?'Ielido: '+r.arrivalTime:''].filter(Boolean).join('  ·  ');
+                addTxt(meta, ML+3, y+8, {size:8.5, color:'#FDEBD0', maxW:TW-30});
+                addTxt(dist.toLocaleString()+' km · '+gcTime(dist), MR-2, y+2.5, {size:8, color:'#FDEBD0', align:'right'});
+                y+=17;
             });
         }
 
-        // ── DOKUMENTI ──
+        // ── DOCUMENTS ──
         if (D.length) {
             secHdr('DOKUMENTI');
-            D.forEach(d => {
-                chk(13);
-                const dt = getDT(d.type);
-                doc.setFillColor(246,249,248); doc.setDrawColor(220,228,226); doc.setLineWidth(.3);
-                doc.roundedRect(ML,y,TW,11,2,2,'FD');
-                addTxt(dt.lbl+': '+d.title, ML+3, y+1.5, {size:9, bold:true, color:'#1C1C2E', maxW:TW-40});
-                const m=[d.date?fd(d.date):'',d.provider||'',d.confirmationNumber?'PNR: '+d.confirmationNumber:''].filter(Boolean).join(' · ');
-                if (m) addTxt(m, MR-2, y+1.5, {size:8, color:'#7A8C8A', align:'right'});
-                if (d.type==='lidojums'&&(d.fromIata||d.toIata)) addTxt((d.fromIata||'')+'→'+(d.toIata||'')+(d.flightNumber?' '+d.flightNumber:''), ML+3, y+7, {size:8, color:'#1A5F58', maxW:TW-10});
-                y += 14;
+            D.forEach(d=>{
+                chk(14);
+                const dt=getDT(d.type);
+                doc.setFillColor(246,249,248); doc.setDrawColor(220,228,226); doc.setLineWidth(0.3);
+                doc.roundedRect(ML,y,TW,11,1.5,1.5,'FD');
+                const title = dt.lbl+': '+d.title;
+                addTxt(title, ML+3, y+1.5, {size:9, bold:true, color:'#1C1C2E', maxW:TW-42});
+                const meta=[d.date?fd(d.date):'',d.provider||'',d.confirmationNumber?'PNR: '+d.confirmationNumber:''].filter(Boolean).join(' · ');
+                if (meta) addTxt(meta, MR-2, y+1.5, {size:8, color:'#7A8C8A', align:'right'});
+                if (d.type==='lidojums'&&(d.fromIata||d.toIata)) {
+                    addTxt((d.fromIata||'')+'→'+(d.toIata||'')+(d.flightNumber?' '+d.flightNumber:'')+(d.seat?' · Vieta: '+d.seat:''), ML+3, y+7, {size:8, color:'#1A5F58', maxW:TW-10});
+                }
+                y+=14;
             });
         }
 
         // ── FOOTER ──
-        const pc = doc.getNumberOfPages();
-        for (let i=1;i<=pc;i++) {
+        const pc=doc.getNumberOfPages();
+        for(let i=1;i<=pc;i++){
             doc.setPage(i);
-            line(ML,286,MR,286);
-            addTxt('Ceļojuma Plānotājs · '+trip.name, ML, 288, {size:8, color:'#AAB4B2'});
-            addTxt(i+' / '+pc, MR, 288, {size:8, color:'#AAB4B2', align:'right'});
+            doc.setDrawColor(220,228,226); doc.setLineWidth(0.3); doc.line(ML,286,MR,286);
+            addTxt('Ceļojuma Plānotājs · '+trip.name, ML, 288, {size:7.5, color:'#AAB4B2'});
+            addTxt(i+' / '+pc, MR, 288, {size:7.5, color:'#AAB4B2', align:'right'});
         }
-        const fn = trip.name.replace(/[^\w\s]/g,'').trim().replace(/\s+/g,'_')+'_'+(trip.startDate||'celojums')+'.pdf';
+        const fn=trip.name.replace(/[^\wāčēģīķļņšūžĀČĒĢĪĶĻŅŠŪŽ\s-]/g,'').trim().replace(/\s+/g,'_')+'_'+(trip.startDate||'celojums')+'.pdf';
         doc.save(fn);
         notif('PDF eksportēts! 📄','ok');
     }
 
+
+    // ── DRAG TO REORDER PLACES IN PLAN ──
+    let _dragPlaceId = null;
+    let _dragOverId = null;
+
+    function onPlaceDragStart(e, placeId) {
+        _dragPlaceId = placeId;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', placeId);
+        setTimeout(() => e.target.closest('.card')?.classList.add('dragging'), 0);
+    }
+    function onPlaceDragOver(e, placeId) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (_dragOverId !== placeId) {
+            document.querySelectorAll('.card.drag-over').forEach(el => el.classList.remove('drag-over'));
+            _dragOverId = placeId;
+            e.target.closest('.card')?.classList.add('drag-over');
+        }
+    }
+    function onPlaceDragLeave(e) {
+        e.target.closest('.card')?.classList.remove('drag-over');
+    }
+    function onPlaceDrop(e, targetId) {
+        e.preventDefault();
+        document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging'));
+        if (!_dragPlaceId || _dragPlaceId === targetId) return;
+        const fromIdx = S.places.findIndex(p => p.id === _dragPlaceId);
+        const toIdx   = S.places.findIndex(p => p.id === targetId);
+        if (fromIdx < 0 || toIdx < 0) return;
+        const [moved] = S.places.splice(fromIdx, 1);
+        S.places.splice(toIdx, 0, moved);
+        save();
+        if (S.isDesk) renderPlan('d-plans-ct','d-plans-sub',true);
+        else          renderPlan('plans-ct','plans-sub',false);
+        _dragPlaceId = null; _dragOverId = null;
+    }
+    function onPlaceDragEnd(e) {
+        document.querySelectorAll('.card.drag-over, .card.dragging').forEach(el => el.classList.remove('drag-over','dragging'));
+        _dragPlaceId = null; _dragOverId = null;
+    }
     function buildMapDateChips() {
         const chips = document.getElementById('map-df-chips'); if (!chips) return;
         const allPl = curPl().filter(p => p.lat && p.lng);
@@ -2545,7 +2546,24 @@
         setTimeout(() => { if (LMAP) { LMAP.invalidateSize();
                 renderMap(); } }, 200); if (S.autoSync && S.syncUrl && navigator.onLine) setTimeout(syncDown, 800);
         history.replaceState({ app: true }, '', location.href);
-        window.addEventListener('popstate', e => { if (modalOpen) { closeModal(); } else { history.pushState({ app: true }, '', location.href); } }); });
+        _navStack.push(S.tab);
+        window.addEventListener('popstate', e => {
+        // Navigation history stack for back button
+        // First close modal if open
+        if (modalOpen) { closeModal(); history.pushState({ app: true }, '', location.href); return; }
+        // Then close submenu if open
+        const sm = document.getElementById('sm-ov');
+        if (sm && sm.classList.contains('on')) { sm.classList.remove('on'); document.getElementById('sm-panel')?.classList.remove('on'); history.pushState({ app: true }, '', location.href); return; }
+        // Navigate back in tab stack
+        if (_navStack.length > 1) {
+            _navStack.pop();
+            const prev = _navStack[_navStack.length - 1];
+            if (prev) switchTab(prev);
+        } else {
+            // Stay in app — push state so next back press repeats
+            history.pushState({ app: true }, '', location.href);
+        }
+    }); });
     </script>
 </body>
 </html>
